@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/logFile"
+        android:icon="@drawable/ic_log"
+        android:title="Общий лог" />
+
+    <item
+        android:id="@+id/robotLog"
+        android:icon="@drawable/ic_robot"
+        android:title="Лог робота" />
+
+</menu>
