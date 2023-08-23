@@ -5,13 +5,10 @@ import android.os.Bundle
 import android.text.InputType
 import android.text.TextUtils
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.CheckBoxPreference
-import androidx.preference.EditTextPreference
-import androidx.preference.ListPreference
-import androidx.preference.Preference
-import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.*
 import ru.lisss79.tinkoffapitrading.PricePriority
 import ru.lisss79.tinkoffapitrading.R
+import ru.lisss79.tinkoffapitrading.SellingPriceHigher
 import ru.lisss79.tinkoffapitrading.TRADING_CURRENCY
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ACCOUNTS
 import kotlin.system.exitProcess
@@ -87,17 +84,26 @@ class SettingsActivity : AppCompatActivity() {
             val auctionPref = findPreference<ListPreference>(getString(R.string.auction_priority))
             auctionPref?.entryValues = PricePriority.getEntries()
             auctionPref?.entries = PricePriority.getRusNames()
-            if(accountPref?.value == null)
+            if (accountPref?.value == null)
                 auctionPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
             val otherPref = findPreference<ListPreference>(getString(R.string.other_priority))
             otherPref?.entryValues = PricePriority.getEntries()
             otherPref?.entries = PricePriority.getRusNames()
-            if(otherPref?.value == null)
+            if (otherPref?.value == null)
                 otherPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
-            val replaceOrder = findPreference<CheckBoxPreference>(getString(R.string.replace_order_enabled))
-            val replaceOrderUp = findPreference<CheckBoxPreference>(getString(R.string.replace_order_up))
+            val sellingPricePref =
+                findPreference<ListPreference>(getString(R.string.selling_price_higher))
+            sellingPricePref?.entryValues = SellingPriceHigher.getEntries()
+            sellingPricePref?.entries = SellingPriceHigher.getRusNames()
+            if (sellingPricePref?.value == null)
+                otherPref?.setValueIndex(SellingPriceHigher.defaultValue.ordinal)
+
+            val replaceOrder =
+                findPreference<CheckBoxPreference>(getString(R.string.replace_order_enabled))
+            val replaceOrderUp =
+                findPreference<CheckBoxPreference>(getString(R.string.replace_order_up))
 
             replaceOrder?.setOnPreferenceChangeListener { _, newValue ->
                 replaceOrderUp?.isEnabled = newValue as Boolean

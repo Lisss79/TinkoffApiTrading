@@ -33,6 +33,11 @@
 
     <PreferenceCategory app:title="Настройки алгоритма">
 
+        <ListPreference
+            android:key="@string/selling_price_higher"
+            android:title="Цена продажи выше покупки"
+            app:useSimpleSummaryProvider="true" />
+
         <ru.lisss79.tinkoffapitrading.PercentPreference
             app:defaultValue="0.7"
             app:key="@string/best_price_quantity_tolerance"

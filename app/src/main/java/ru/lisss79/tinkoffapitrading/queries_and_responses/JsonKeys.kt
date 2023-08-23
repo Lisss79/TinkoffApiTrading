@@ -54,4 +54,5 @@ object JsonKeys {
     const val INITIAL_ORDER_PRICE = "initialOrderPrice"
     const val ORDER_DATE = "orderDate"
     const val IDEMPOTENCY_KEY = "idempotencyKey"
+    const val LAST_PURCHASE_PRICE = "lastPurchasePrice"
 }

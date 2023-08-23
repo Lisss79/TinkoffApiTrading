@@ -14,6 +14,7 @@
     <string name="replace_order_enabled">replace_order_enabled</string>
     <string name="replace_order_up">replace_order_up</string>
     <string name="evening_trades">evening_trades</string>
+    <string name="selling_price_higher">selling_price_higher</string>
     <string name="recent_trades_quantity_tolerance">recent_trades_quantity_tolerance</string>
     <string name="money_after_spent">money_after_spent</string>
     <string name="main_request_delay_min">main_request_delay_min</string>

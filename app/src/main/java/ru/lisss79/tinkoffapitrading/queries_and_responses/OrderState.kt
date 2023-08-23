@@ -14,8 +14,10 @@ class OrderState(val orderId: String = "",
                  val figi: String = "",
                  val executionReportStatus: ExecutionReportStatus =
                      ExecutionReportStatus.EXECUTION_REPORT_STATUS_UNSPECIFIED,
+                 // Общая цена заявки
                  val initialOrderPrice: Money = Money.ZERO,
                  val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
+    // Цена заявки одного лота
                  val initialSecurityPrice: Money = Money.ZERO,
                  var orderDate: Instant = Instant.now()) {
 

@@ -13,6 +13,7 @@ import android.os.*
 import androidx.preference.PreferenceManager
 import ru.lisss79.tinkoffapitrading.queries_and_responses.*
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.CONFIG
+import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ORDER_ID
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.SCHEDULE_NEXT
@@ -61,25 +62,26 @@ var EVENING_TRADES = false
 // Допуск в объеме торгов (от максимума) для определения лучшей цены
 var BEST_PRICE_QUANTITY_TOLERANCE = 0.7f
 
+// Цена продажи выше цены покупки?
+var SELLING_PRICE_HIGHER = SellingPriceHigher.defaultValue
+
+// Шаг цены лота. Как же его сцуко получить через API??
+var PRICE_STEP = 0.01f
+
 // Приоритет определения цены
 // Для торгового дня
-//var TRADING_PRIORITY = PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY_TOLERANCE
 var TRADING_DAY_PRIORITY = PricePriority.defaultValue
 
 // Для вечерней сессии
-//var TRADING_PRIORITY = PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY_TOLERANCE
 var TRADING_EVENING_PRIORITY = PricePriority.defaultValue
 
 // Для начала торгового дня
-//var START_DAY_PRIORITY = PricePriority.PRIORITY_PRICE_ORDER_BOOK
 var START_DAY_PRIORITY = PricePriority.defaultValue
 
 // Для аукциона открытия
-//var AUCTION_PRIORITY = PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY
 var AUCTION_PRIORITY = PricePriority.defaultValue
 
 // Для остальных случаев
-//var OTHER_PRIORITY = PricePriority.PRIORITY_CLOSE_PRICE
 var OTHER_PRIORITY = PricePriority.defaultValue
 
 // Ключ для передачи данных из activity в broadcast receiver
@@ -201,7 +203,10 @@ class RobotReceiver : BroadcastReceiver() {
 
             // Если торги доступны
             else {
+                // Получаем и сохраняем цены, выбранные по заданному критерию
                 val (bidPrice, askPrice) = getPrices()
+                config.selectedPurchasePrice = bidPrice
+                config.selectedSellingPrice = askPrice
                 getActiveOrders()
                 if (scheduleNext) order = robotCycle(bidPrice, askPrice)
                 logFile.appendText("Trading data:\n")
@@ -226,15 +231,30 @@ class RobotReceiver : BroadcastReceiver() {
         settingsPrefs = PreferenceManager.getDefaultSharedPreferences(context)
         TOKEN = settingsPrefs.getString(context.getString(R.string.TOKEN), "") ?: ""
         INSTRUMENT_TICKER = settingsPrefs.getString(context.getString(R.string.TICKER), "") ?: ""
+        SELLING_PRICE_HIGHER = SellingPriceHigher.valueOf(
+            settingsPrefs.getString(
+                context.getString(R.string.selling_price_higher),
+                SellingPriceHigher.defaultValue.name
+            ) ?: SellingPriceHigher.defaultValue.name
+        )
         TRADING_DAY_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(context.getString(R.string.trading_day_priority),
-                PricePriority.defaultValue.name) ?: PricePriority.defaultValue.name)
+            settingsPrefs.getString(
+                context.getString(R.string.trading_day_priority),
+                PricePriority.defaultValue.name
+            ) ?: PricePriority.defaultValue.name
+        )
         TRADING_EVENING_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(context.getString(R.string.trading_evening_priority),
-                PricePriority.defaultValue.name) ?: PricePriority.defaultValue.name)
+            settingsPrefs.getString(
+                context.getString(R.string.trading_evening_priority),
+                PricePriority.defaultValue.name
+            ) ?: PricePriority.defaultValue.name
+        )
         START_DAY_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(context.getString(R.string.start_day_priority),
-                PricePriority.defaultValue.name) ?: PricePriority.defaultValue.name)
+            settingsPrefs.getString(
+                context.getString(R.string.start_day_priority),
+                PricePriority.defaultValue.name
+            ) ?: PricePriority.defaultValue.name
+        )
         AUCTION_PRIORITY = PricePriority.valueOf(
             settingsPrefs.getString(context.getString(R.string.auction_priority),
                 PricePriority.defaultValue.name) ?: PricePriority.defaultValue.name)
@@ -480,15 +500,17 @@ class RobotReceiver : BroadcastReceiver() {
 
     /**
      * Проверить состояние последней заявки и обнулить данные о ней,
-     * если она выполнена, отменена или отклонена
+     * если она выполнена, отменена или отклонена.
+     * Обновить и записать в конфиг цену последней покупки
      */
     private fun checkForLastOrder() {
+        var lastPurchasePrice = prefs.getFloat(LAST_PURCHASE_PRICE, 0f)
         val lastOrderId = prefs.getString(ORDER_ID, "") ?: ""
         if (lastOrderId.isNotEmpty()) {
             val lastOrder = api.getOrderState(config.accountId, lastOrderId).get()
             when (lastOrder?.executionReportStatus) {
+                // Заявка отменена отклонена
                 ExecutionReportStatus.EXECUTION_REPORT_STATUS_CANCELLED,
-                ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL,
                 ExecutionReportStatus.EXECUTION_REPORT_STATUS_REJECTED -> {
                     lastOrder.orderDate = Instant.now()
                     robotTrades.appendText(lastOrder.toJsonLog())
@@ -497,9 +519,26 @@ class RobotReceiver : BroadcastReceiver() {
                     editor.putString(ORDER_ID, "")
                     editor.apply()
                 }
+                // Заявка успешно выполнена
+                ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL -> {
+                    lastOrder.orderDate = Instant.now()
+                    robotTrades.appendText(lastOrder.toJsonLog())
+                    robotTrades.appendText("\n")
+                    val editor = prefs.edit()
+                    editor.putString(ORDER_ID, "")
+
+                    // Цена последней покупки (0 - если была продажа)
+                    lastPurchasePrice = if (lastOrder.direction == Direction.ORDER_DIRECTION_BUY)
+                        lastOrder.initialSecurityPrice.value
+                    else 0f
+                    editor.putFloat(LAST_PURCHASE_PRICE, lastPurchasePrice)
+                    editor.apply()
+                }
+
                 else -> {}
             }
         }
+        config.lastPurchasePrice = lastPurchasePrice
     }
 
     /**
@@ -677,8 +716,8 @@ class RobotReceiver : BroadcastReceiver() {
     /**
      * Возвращает пару цены покупка/продажа исходя из заданного приоритета
      */
-    private fun getPairPrices(priority: PricePriority) =
-        when (priority) {
+    private fun getPairPrices(priority: PricePriority): Pair<Float, Float> {
+        val pair = when (priority) {
             PricePriority.PRIORITY_RECENT_PRICE ->
                 Pair(config.minPriceRecent, config.maxPriceRecent)
             PricePriority.PRIORITY_PRICE_ORDER_BOOK ->
@@ -690,6 +729,17 @@ class RobotReceiver : BroadcastReceiver() {
             PricePriority.PRIORITY_CLOSE_PRICE ->
                 Pair(config.closePrice, config.closePrice)
         }
+
+        // Изменение цены продажи, если она должна быть выше цены покупки и известна цена покупки
+        val result = when {
+            SELLING_PRICE_HIGHER == SellingPriceHigher.EXACTLY_ONE_STEP &&
+                    config.lastPurchasePrice > 0f -> pair.first to config.lastPurchasePrice + PRICE_STEP
+            SELLING_PRICE_HIGHER == SellingPriceHigher.ONE_STEP_OR_MORE -> pair.first to
+                    pair.second.coerceAtLeast(config.lastPurchasePrice + PRICE_STEP)
+            else -> pair
+        }
+        return result
+    }
 
     /**
      * Возвращает число миллисекунд, соответствующее времени следующего запуска Alarm Manager'а
