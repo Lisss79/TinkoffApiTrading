@@ -4,7 +4,8 @@ import java.time.Instant
 
 // Финансовый результат покупки или продажи
 data class FinancialResult(
-    val dateTime: Instant? = null,
+    val ticker: String = "",
+    val dateTime: Instant = Instant.now(),
     val result: Float = 0f,
-    val price: Float? = 0f
+    val price: Float = 0f
 )

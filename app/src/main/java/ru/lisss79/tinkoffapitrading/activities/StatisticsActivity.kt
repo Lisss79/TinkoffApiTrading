@@ -23,10 +23,12 @@ class StatisticsActivity : AppCompatActivity() {
         val orderLines = robotTrades.readLines()
         val orders = orderLines.map { OrderState.parse(it) }
         val results = orders.map {
-            FinancialResult(
-                it?.orderDate, getFinancialResult(orders, it),
-                it?.initialSecurityPrice?.value
-            )
+            it?.run {
+                FinancialResult(
+                    figi, orderDate,
+                    getFinancialResult(orders, it), initialSecurityPrice.value
+                )
+            } ?: FinancialResult()
         }.filter { it.result != 0f }
 
         val textViewStatistic = findViewById<TextView>(R.id.textViewStatistics)
@@ -52,7 +54,7 @@ class StatisticsActivity : AppCompatActivity() {
     }
 
     private fun getText(result: FinancialResult): String {
-        val date = if (result.dateTime != null) Date.from(result.dateTime) else Date(0L)
+        val date = Date.from(result.dateTime)
         val format = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
         val displayDate = format.format(date)
         return if (result.result > 0f) "Продажа +${result.result} (${result.price}) в $displayDate"

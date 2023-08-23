@@ -17,7 +17,7 @@ class OrderState(val orderId: String = "",
                  // Общая цена заявки
                  val initialOrderPrice: Money = Money.ZERO,
                  val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
-    // Цена заявки одного лота
+                 // Цена заявки одного лота
                  val initialSecurityPrice: Money = Money.ZERO,
                  var orderDate: Instant = Instant.now()) {
 
