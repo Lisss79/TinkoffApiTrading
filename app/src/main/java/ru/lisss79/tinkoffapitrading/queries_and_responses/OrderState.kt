@@ -27,7 +27,7 @@ class OrderState(val orderId: String = "",
             return try {
                 val json = JSONObject(response)
                 parse(json)
-            } catch (e: java.lang.Exception) {
+            } catch (e: Exception) {
                 println("Not correct response to parse: $response")
                 e.printStackTrace()
                 null

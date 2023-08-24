@@ -3,37 +3,45 @@ package ru.lisss79.tinkoffapitrading.activities
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import ru.lisss79.tinkoffapitrading.FinancialResult
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import ru.lisss79.tinkoffapitrading.Deal
 import ru.lisss79.tinkoffapitrading.R
 import ru.lisss79.tinkoffapitrading.queries_and_responses.Direction
 import ru.lisss79.tinkoffapitrading.queries_and_responses.ExecutionReportStatus
 import ru.lisss79.tinkoffapitrading.queries_and_responses.OrderState
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 class StatisticsActivity : AppCompatActivity() {
+    private var text: String = ""
     private lateinit var robotTrades: File                  // лог-файл с результатами выставления заявок
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_statistics)
 
-        robotTrades = File(getExternalFilesDir(null), "robot.txt")
-        val orderLines = robotTrades.readLines()
-        val orders = orderLines.map { OrderState.parse(it) }
-        val results = orders.map {
-            it?.run {
-                FinancialResult(
-                    figi, orderDate,
-                    getFinancialResult(orders, it), initialSecurityPrice.value
-                )
-            } ?: FinancialResult()
-        }.filter { it.result != 0f }
-
         val textViewStatistic = findViewById<TextView>(R.id.textViewStatistics)
-        results.forEach {
-            textViewStatistic.append(getText(it) + "\n")
+        robotTrades = File(getExternalFilesDir(null), "robot.txt")
+        text = getDealsText(robotTrades)
+        textViewStatistic.text = text
+
+        val bottomNavigationView =
+            findViewById<BottomNavigationView>(R.id.bottomNavigationViewStatistics)
+        bottomNavigationView.setOnItemSelectedListener {
+            text = when (it.itemId) {
+                R.id.listDeals -> {
+                    getDealsText(robotTrades)
+                }
+                R.id.listResults -> {
+                    getResultsText(robotTrades)
+                }
+                else -> ""
+            }
+            textViewStatistic.text = text
+            true
         }
 
     }
@@ -53,11 +61,73 @@ class StatisticsActivity : AppCompatActivity() {
         }
     }
 
-    private fun getText(result: FinancialResult): String {
-        val date = Date.from(result.dateTime)
-        val format = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
-        val displayDate = format.format(date)
-        return if (result.result > 0f) "Продажа +${result.result} (${result.price}) в $displayDate"
-        else "Покупка ${result.result} (${result.price}) в $displayDate"
+    private fun getResultsText(file: File): String {
+        val builder = StringBuilder()
+
+        fun getLine(deal1: Deal, deal2: Deal): String {
+            val date = Date.from(deal1.dateTime)
+            val format = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+            val displayDate = format.format(date)
+            val displayFinRes = String.format("%.2f", deal1.result + deal2.result)
+            return "$displayDate: $displayFinRes, ${deal1.figi}"
+        }
+
+        val deals = getDeals(file)
+        if (deals.size > 1) {
+            var index = 0
+            while (index < deals.size - 2) {
+                val deal1 = deals[index]
+                val deal2 = deals[index + 1]
+                if ((deal1.figi == deal2.figi) && (deal1.quantity == deal2.quantity)
+                    && (deal1.result * deal2.result < 0)
+                ) {
+                    builder.append(getLine(deal1, deal2)).append("\n")
+                    index++
+                }
+                index++
+            }
+        } else builder.append("Нет данных")
+        return builder.toString()
+
     }
+
+    private fun getDealsText(file: File): String {
+        val builder = StringBuilder()
+
+        fun getLine(result: Deal): String {
+            val date = Date.from(result.dateTime)
+            val format = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
+            val displayDate = format.format(date)
+            return if (result.result > 0f) "Продажа +${result.result} (${result.price}) в $displayDate"
+            else "Покупка ${result.result} (${result.price}) в $displayDate"
+        }
+
+        val deals = getDeals(file)
+        if (deals.isNotEmpty()) deals.forEach { builder.append(getLine(it)).append("\n") }
+        else builder.append("Нет данных")
+        return builder.toString()
+    }
+
+    private fun getDeals(file: File) =
+        try {
+            val orderLines = file.readLines()
+            val orders = orderLines.map { OrderState.parse(it) }
+            orders.map {
+                it?.run {
+                    val quantity = if (initialSecurityPrice.value != 0f)
+                        (initialOrderPrice.value / initialSecurityPrice.value).roundToInt()
+                    else 0
+                    Deal(
+                        figi,
+                        orderDate,
+                        getFinancialResult(orders, it),
+                        initialSecurityPrice.value,
+                        quantity
+                    )
+                } ?: Deal()
+            }.filter { it.result != 0f }
+        } catch (e: IOException) {
+            listOf()
+        }
+
 }

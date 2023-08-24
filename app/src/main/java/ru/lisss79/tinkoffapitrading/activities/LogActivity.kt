@@ -31,7 +31,7 @@ class LogActivity : AppCompatActivity() {
         textViewLog.text = text
         registerForContextMenu(textViewLog)
 
-        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationView)
+        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationViewLog)
         bottomNavigationView.setOnItemSelectedListener {
             text = when (it.itemId) {
                 R.id.logFile -> {
