@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvInfo: TextView
     private lateinit var tvOrder: TextView
     private lateinit var tvAlarmInfo: TextView
+    private lateinit var tvError: TextView
     private lateinit var pbLoading: ProgressBar
     private lateinit var intentSettings: Intent
     private lateinit var receiver: ResultReceiver
@@ -68,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         tvAlarmInfo = findViewById(R.id.text_view_alarm_info)
         tvInfo = findViewById(R.id.text_view_info)
         tvOrder = findViewById(R.id.text_view_order)
+        tvError = findViewById(R.id.text_view_error)
         val buttonConnect = findViewById<Button>(R.id.button_connect)
         val buttonStop = findViewById<Button>(R.id.button_stop)
         val buttonInfo = findViewById<Button>(R.id.button_info)
@@ -156,6 +158,11 @@ class MainActivity : AppCompatActivity() {
                 } ?: TradingConfig()
                 if (config.accountId.isNotEmpty()) tvInfo.text = config.toString()
                 else tvInfo.text = "Ошибка получения данных"
+
+                if (config.error.isNotEmpty()) {
+                    val errorText = "\nПроизошла ошибка! ${config.error}"
+                    tvError.text = errorText
+                } else tvError.text = ""
 
                 val order = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     resultData?.getSerializable(ORDER, PostOrder::class.java)

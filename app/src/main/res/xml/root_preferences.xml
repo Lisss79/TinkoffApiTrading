@@ -100,9 +100,12 @@
             app:title="Токен"
             app:useSimpleSummaryProvider="false" />
 
-        <EditTextPreference
-            app:key="@string/TICKER"
-            app:title="Тикер инструмента"
+        <ListPreference
+            android:defaultValue=""
+            android:entries="@array/tickers"
+            android:entryValues="@array/tickers"
+            android:key="@string/TICKER"
+            android:title="Тикер инструмента"
             app:useSimpleSummaryProvider="true" />
 
         <ListPreference

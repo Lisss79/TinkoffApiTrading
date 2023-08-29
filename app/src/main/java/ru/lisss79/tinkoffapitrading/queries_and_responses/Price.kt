@@ -3,10 +3,13 @@ package ru.lisss79.tinkoffapitrading.queries_and_responses
 import org.json.JSONObject
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.NANO
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.UNITS
+import java.io.Serializable
 import kotlin.math.floor
 
-class Price(val units: String = "0",
-            val nano: Long = 0L) : java.io.Serializable {
+class Price(
+    val units: String = "0",
+    val nano: Long = 0L
+) : Serializable {
 
     val value: Float
         get() {

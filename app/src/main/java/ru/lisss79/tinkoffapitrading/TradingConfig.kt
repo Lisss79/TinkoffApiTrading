@@ -10,6 +10,7 @@ data class TradingConfig(
     var accountId: String = "",                     // Id торгового счета пользователя
     var figi: String = "",                          // FIGI инструмента для торгов
     var instrumentId: String = "",                  // Id инструмента для торгов
+    var minPriceIncrement: Float = 0f,              // минимальный шаг цены
     var currencyQuantity: Float = 0f,               // количество денег на торговом счету
     var currencyIso: String = "rub",                // валюта торгового счета
     var minPriceRecent: Float = 0f,                 // минимальная цена за последний период
@@ -31,6 +32,7 @@ data class TradingConfig(
     var lastPurchasePrice: Float = 0f,              // цена лота последней покупки
     var selectedPurchasePrice: Float = 0f,          // выбранная цена на покупку
     var selectedSellingPrice: Float = 0f,           // выбранная на продажу
+    var error: String = ""                          // текст ошибки, если она произошла
 ) : Serializable {
     val CR = System.lineSeparator()
 
@@ -39,18 +41,21 @@ data class TradingConfig(
                 "Тикер бумаги: $INSTRUMENT_TICKER$CR" +
                 "Uid бумаги: $instrumentId$CR" +
                 "FIGI бумаги: $figi$CR" +
-                "Цена закрытия - $closePrice$CR" +
+                "Цена закрытия - $closePrice, шаг цены - $minPriceIncrement$CR" +
                 "Цена последней покупки - $lastPurchasePrice$CR" +
                 "На счету денег - $currencyQuantity$currencyIso, бумаг - $positionQuantity$CR$CR"
-        val data2 = if (tradesAvailable) {
-            "Цены последних торгов: мин. - $minPriceRecent, макс. - $maxPriceRecent$CR" +
-                    "Лучшие цены в стакане: bid - $bestBidPrice, ask - $bestAskPrice$CR" +
-                    "Цены с макс. объемом: bid - $bidPriceWithMaxQuantity, " +
-                    "ask - $askPriceWithMaxQuantity$CR" +
-                    "Лучшие цены с допуском объема: bid - $bidPriceWithQuantityTolerance, " +
-                    "ask - $askPriceWithQuantityTolerance$CR" +
-                    "Выбранные цены: покупка - $selectedPurchasePrice, продажа - $selectedSellingPrice $CR$CR"
-        } else "Данные по текущим ценам недоступны, т.к. торги сейчас не ведутся$CR$CR"
+        val data2 =
+            if (tradesAvailable && selectedPurchasePrice != 0f && selectedSellingPrice != 0f) {
+                "Цены последних торгов: мин. - $minPriceRecent, макс. - $maxPriceRecent$CR" +
+                        "Лучшие цены в стакане: bid - $bestBidPrice, ask - $bestAskPrice$CR" +
+                        "Цены с макс. объемом: bid - $bidPriceWithMaxQuantity, " +
+                        "ask - $askPriceWithMaxQuantity$CR" +
+                        "Лучшие цены с допуском объема: bid - $bidPriceWithQuantityTolerance, " +
+                        "ask - $askPriceWithQuantityTolerance$CR" +
+                        "Выбранные цены: покупка - $selectedPurchasePrice, продажа - $selectedSellingPrice $CR$CR"
+            } else if (tradesAvailable && selectedPurchasePrice == 0f && selectedSellingPrice == 0f) {
+                "Данные по текущим ценам недоступны, т.к. цены не получены$CR$CR"
+            } else "Данные по текущим ценам недоступны, т.к. торги сейчас не ведутся$CR$CR"
         val data3 = if (activeOrders > 0) {
             "Активных заявок - $activeOrders, ${activeOrdersQuantity}шт по цене $activeOrdersPrice,$CR" +
                     "id = $activeOrderId, направление - $activeOrderDirection"

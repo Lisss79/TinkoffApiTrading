@@ -4,16 +4,18 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
 import ru.lisss79.tinkoffapitrading.queries_and_responses.*
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ACCOUNT_ID
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.DEPTH
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.EXCHANGE
-import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.QUERY
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.FROM
+import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ID
+import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ID_TYPE
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.INSTRUMENTS
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.INSTRUMENT_ID
+import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.INSTRUMENT_KIND
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.ORDER_ID
+import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.QUERY
 import ru.lisss79.tinkoffapitrading.queries_and_responses.JsonKeys.TO
 import java.io.IOException
 import java.time.Instant
@@ -43,21 +45,23 @@ class TinkoffOpenApi(val token: String) {
                     accounts = GetAccountsResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync accounts
         }
         return future
     }
 
-    fun findInstruments(query: String): CompletableFuture<FindInstrumentsResponse?> {
+    fun findInstruments(query: String, instrumentKind: String):
+            CompletableFuture<FindInstrumentsResponse?> {
 
         val future: CompletableFuture<FindInstrumentsResponse?> = CompletableFuture.supplyAsync {
             var instruments: FindInstrumentsResponse? = null
             val client = OkHttpClient()
 
-            val url = API_URL + "tinkoff.public.invest.api.contract.v1.InstrumentsService/FindInstrument"
-            val mapRequest = mapOf(QUERY to query)
+            val url =
+                API_URL + "tinkoff.public.invest.api.contract.v1.InstrumentsService/FindInstrument"
+            val mapRequest = mapOf(QUERY to query, INSTRUMENT_KIND to instrumentKind)
             val request = getRequestWithAuth(url, createBody(mapRequest))
 
             try {
@@ -71,7 +75,36 @@ class TinkoffOpenApi(val token: String) {
                     instruments = FindInstrumentsResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
+            }
+            return@supplyAsync instruments
+        }
+        return future
+    }
+
+    fun etfBy(id: String, idType: String):
+            CompletableFuture<EtfResponse?> {
+
+        val future: CompletableFuture<EtfResponse?> = CompletableFuture.supplyAsync {
+            var instruments: EtfResponse? = null
+            val client = OkHttpClient()
+
+            val url = API_URL + "tinkoff.public.invest.api.contract.v1.InstrumentsService/EtfBy"
+            val mapRequest = mapOf(ID to id, ID_TYPE to idType)
+            val request = getRequestWithAuth(url, createBody(mapRequest))
+
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException(
+                            "Запрос к серверу не был успешен (метод etfBy):" +
+                                    " ${response.code} ${response.body?.string()}"
+                        )
+                    }
+                    instruments = EtfResponse.parse(response.body?.string())
+                }
+            } catch (e: IOException) {
+                println("$e")
             }
             return@supplyAsync instruments
         }
@@ -84,7 +117,8 @@ class TinkoffOpenApi(val token: String) {
             var positions: GetPositionsResponse? = null
             val client = OkHttpClient()
 
-            val url = API_URL + "tinkoff.public.invest.api.contract.v1.OperationsService/GetPositions"
+            val url =
+                API_URL + "tinkoff.public.invest.api.contract.v1.OperationsService/GetPositions"
             val mapRequest = mapOf(ACCOUNT_ID to accountId)
             val request = getRequestWithAuth(url, createBody(mapRequest))
 
@@ -99,20 +133,22 @@ class TinkoffOpenApi(val token: String) {
                     positions = GetPositionsResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync positions
         }
         return future
     }
 
-    fun getLastTrades(from: Instant, to: Instant, instrumentId: String): CompletableFuture<GetLastTradesResponse?> {
+    fun getLastTrades(from: Instant, to: Instant, instrumentId: String):
+            CompletableFuture<GetLastTradesResponse?> {
 
         val future: CompletableFuture<GetLastTradesResponse?> = CompletableFuture.supplyAsync {
             var trades: GetLastTradesResponse? = null
             val client = OkHttpClient()
 
-            val url = API_URL + "tinkoff.public.invest.api.contract.v1.MarketDataService/GetLastTrades"
+            val url =
+                API_URL + "tinkoff.public.invest.api.contract.v1.MarketDataService/GetLastTrades"
             val mapRequest =
                 mapOf(FROM to from.toString(), TO to to.toString(), INSTRUMENT_ID to instrumentId)
             val request = getRequestWithAuth(url, createBody(mapRequest))
@@ -128,7 +164,7 @@ class TinkoffOpenApi(val token: String) {
                     trades = GetLastTradesResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync trades
         }
@@ -156,7 +192,7 @@ class TinkoffOpenApi(val token: String) {
                     status = GetTradingStatusResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync status
         }
@@ -184,7 +220,7 @@ class TinkoffOpenApi(val token: String) {
                     orders = GetOrdersResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync orders
         }
@@ -212,7 +248,7 @@ class TinkoffOpenApi(val token: String) {
                     orderState = OrderState.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync orderState
         }
@@ -240,7 +276,7 @@ class TinkoffOpenApi(val token: String) {
                     orderResponse = PostOrderResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync orderResponse
         }
@@ -268,7 +304,7 @@ class TinkoffOpenApi(val token: String) {
                     orderResponse = PostOrderResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync orderResponse
         }
@@ -299,7 +335,7 @@ class TinkoffOpenApi(val token: String) {
                         ?.let { TradingSchedulesResponse.parse(it) }
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync tradingSchedules
         }
@@ -329,7 +365,7 @@ class TinkoffOpenApi(val token: String) {
                         ?.let { GetOrderBookResponse.parse(it) }
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync orderBook
         }
@@ -358,7 +394,7 @@ class TinkoffOpenApi(val token: String) {
                         ?.let { GetClosePricesResponse.parse(it) }
                 }
             } catch (e: IOException) {
-                println("$e");
+                println("$e")
             }
             return@supplyAsync closePrice
         }

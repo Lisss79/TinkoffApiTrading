@@ -36,6 +36,7 @@ class SettingsActivity : AppCompatActivity() {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
             // Настраиваем меню настроек
+            // Меню ввода токена
             val tokenPref = findPreference<EditTextPreference>(getString(R.string.TOKEN))
             tokenPref?.setOnPreferenceChangeListener { _, _ ->
                 val builder = AlertDialog.Builder(context)
@@ -52,22 +53,28 @@ class SettingsActivity : AppCompatActivity() {
                 else "Установлен"
             }
 
+            // Меню выбора инструмента
+            val instrumentPref = findPreference<ListPreference>(getString(R.string.TICKER))
+            if (instrumentPref?.value == null) instrumentPref?.setValueIndex(0)
+
+            // Меню выбора аккаунта
             val accountPref = findPreference<ListPreference>(getString(R.string.ACCOUNT))
             if (accounts != null) {
                 accountPref?.entryValues = accounts
                 accountPref?.entries = accounts
-            }
-            else {
-                accountPref?.entryValues = Array(0) {"Нет данных"}
-                accountPref?.entries = Array(0) {"Нет данных"}
+            } else {
+                accountPref?.entryValues = Array(0) { "Нет данных" }
+                accountPref?.entries = Array(0) { "Нет данных" }
             }
 
+            // Меню выбора приоритета для торгового дня
             val tradingPref = findPreference<ListPreference>(getString(R.string.trading_day_priority))
             tradingPref?.entryValues = PricePriority.getEntries()
             tradingPref?.entries = PricePriority.getRusNames()
             if(tradingPref?.value == null)
                 tradingPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
+            // Меню выбора приоритета для вечерней сессии
             val tradingEveningPref =
                 findPreference<ListPreference>(getString(R.string.trading_evening_priority))
             tradingEveningPref?.entryValues = PricePriority.getEntries()
@@ -75,24 +82,28 @@ class SettingsActivity : AppCompatActivity() {
             if(tradingEveningPref?.value == null)
                 tradingEveningPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
+            // Меню выбора приоритета для начала торгового дня
             val startPref = findPreference<ListPreference>(getString(R.string.start_day_priority))
             startPref?.entryValues = PricePriority.getEntries()
             startPref?.entries = PricePriority.getRusNames()
             if(startPref?.value == null)
                 startPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
+            // Меню выбора приоритета для аукциона открытия
             val auctionPref = findPreference<ListPreference>(getString(R.string.auction_priority))
             auctionPref?.entryValues = PricePriority.getEntries()
             auctionPref?.entries = PricePriority.getRusNames()
             if (accountPref?.value == null)
                 auctionPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
+            // Меню выбора приоритета для иных случаев
             val otherPref = findPreference<ListPreference>(getString(R.string.other_priority))
             otherPref?.entryValues = PricePriority.getEntries()
             otherPref?.entries = PricePriority.getRusNames()
             if (otherPref?.value == null)
                 otherPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
+            // Меню выбора цены продажи, более высокой, чем цена покупки
             val sellingPricePref =
                 findPreference<ListPreference>(getString(R.string.selling_price_higher))
             sellingPricePref?.entryValues = SellingPriceHigher.getEntries()
@@ -100,17 +111,18 @@ class SettingsActivity : AppCompatActivity() {
             if (sellingPricePref?.value == null)
                 otherPref?.setValueIndex(SellingPriceHigher.defaultValue.ordinal)
 
+            // Меню разрешения замены заявок и замены только вверх
             val replaceOrder =
                 findPreference<CheckBoxPreference>(getString(R.string.replace_order_enabled))
             val replaceOrderUp =
                 findPreference<CheckBoxPreference>(getString(R.string.replace_order_up))
-
             replaceOrder?.setOnPreferenceChangeListener { _, newValue ->
                 replaceOrderUp?.isEnabled = newValue as Boolean
                 true
             }
             if (replaceOrder?.isChecked == true) replaceOrderUp?.isEnabled = true
 
+            // Меню ввода минимального остатка денег
             val minMoney = findPreference<EditTextPreference>(getString(R.string.money_after_spent))
             minMoney?.setOnBindEditTextListener { editText ->
                 editText.inputType = InputType.TYPE_CLASS_NUMBER
@@ -121,6 +133,7 @@ class SettingsActivity : AppCompatActivity() {
                 else "${text}$TRADING_CURRENCY"
             }
 
+            // Меню ввода интервала вызова робота
             val mainInterval = findPreference<EditTextPreference>(getString(R.string.main_request_delay_min))
             mainInterval?.setOnBindEditTextListener { editText ->
                 editText.inputType = InputType.TYPE_CLASS_NUMBER
@@ -131,6 +144,7 @@ class SettingsActivity : AppCompatActivity() {
                 else "${text}мин"
             }
 
+            // Меню ввода интервала, который считается началом торгов
             val startInterval = findPreference<EditTextPreference>(getString(R.string.recent_interval_min))
             startInterval?.setOnBindEditTextListener { editText ->
                 editText.inputType = InputType.TYPE_CLASS_NUMBER

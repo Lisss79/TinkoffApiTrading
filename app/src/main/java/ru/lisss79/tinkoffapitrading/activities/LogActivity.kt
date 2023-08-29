@@ -5,6 +5,7 @@ import android.view.ContextMenu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -15,10 +16,14 @@ import java.io.IOException
 class LogActivity : AppCompatActivity() {
     private val LOG_FILE = 1
     private val LOG_ROBOT = 2
-    private var text: String = ""
+    private val SCROLL_DELAY_MS = 100L
+    private var scrollPositionLog = -1
+    private var scrollPositionRobot = -1
     private var selectedLog = LOG_FILE
     private lateinit var logFile: File
     private lateinit var robotTrades: File
+    private lateinit var scrollViewLog: ScrollView
+    private lateinit var textViewLog: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,27 +31,32 @@ class LogActivity : AppCompatActivity() {
 
         logFile = File(getExternalFilesDir(null), "logfile.txt")
         robotTrades = File(getExternalFilesDir(null), "robot.txt")
-        val textViewLog = findViewById<TextView>(R.id.textViewLog)
-        text = readTextFromFile(logFile)
-        textViewLog.text = text
+        scrollViewLog = findViewById(R.id.scrollViewLog)
+        textViewLog = findViewById(R.id.textViewLog)
+        readAndShow(logFile)
         registerForContextMenu(textViewLog)
 
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationViewLog)
         bottomNavigationView.setOnItemSelectedListener {
-            text = when (it.itemId) {
+            textViewLog.text = ""
+            when (it.itemId) {
                 R.id.logFile -> {
                     selectedLog = LOG_FILE
-                    readTextFromFile(logFile)
+                    readAndShow(logFile)
                 }
                 R.id.robotLog -> {
                     selectedLog = LOG_ROBOT
-                    readTextFromFile(robotTrades)
+                    readAndShow(robotTrades)
                 }
-                else -> ""
             }
-            textViewLog.text = text
             true
         }
+
+        scrollViewLog.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            if (selectedLog == LOG_FILE) scrollPositionLog = scrollY
+            else scrollPositionRobot = scrollY
+        }
+
     }
 
     override fun onCreateContextMenu(
@@ -66,8 +76,7 @@ class LogActivity : AppCompatActivity() {
                     try {
                         logFile.delete()
                         recreate()
-                    }
-                    catch (e: IOException) {
+                    } catch (e: IOException) {
                         e.printStackTrace()
                     }
 
@@ -75,8 +84,7 @@ class LogActivity : AppCompatActivity() {
                     try {
                         robotTrades.delete()
                         recreate()
-                    }
-                    catch (e: IOException) {
+                    } catch (e: IOException) {
                         e.printStackTrace()
                     }
                 }
@@ -86,12 +94,36 @@ class LogActivity : AppCompatActivity() {
         }
     }
 
-    private fun readTextFromFile(file: File) =
-        try {
+    private fun readAndShow(file: File) {
+        val text = try {
             file.readText()
-        }
-        catch (e: IOException) {
+        } catch (e: IOException) {
             "Ошибка чтения данных"
         }
+        textViewLog.text = text
+
+        when (file) {
+            logFile -> {
+                if (scrollPositionLog == -1) {
+                    scrollViewLog
+                        .postDelayed({ scrollViewLog.fullScroll(View.FOCUS_DOWN) }, SCROLL_DELAY_MS)
+                } else {
+                    val k = scrollPositionLog
+                    scrollViewLog
+                        .postDelayed({ scrollViewLog.scrollTo(0, k) }, SCROLL_DELAY_MS)
+                }
+            }
+            robotTrades -> {
+                if (scrollPositionRobot == -1) {
+                    scrollViewLog
+                        .postDelayed({ scrollViewLog.fullScroll(View.FOCUS_DOWN) }, SCROLL_DELAY_MS)
+                } else {
+                    val k = scrollPositionRobot
+                    scrollViewLog
+                        .postDelayed({ scrollViewLog.scrollTo(0, k) }, SCROLL_DELAY_MS)
+                }
+            }
+        }
+    }
 
 }

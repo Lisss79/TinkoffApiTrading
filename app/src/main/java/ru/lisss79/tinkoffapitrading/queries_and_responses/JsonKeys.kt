@@ -7,6 +7,7 @@ object JsonKeys {
     const val STATUS = "status"
     const val ACCESS_LEVEL = "accessLevel"
     const val INSTRUMENTS = "instruments"
+    const val INSTRUMENT = "instrument"
     const val UID = "uid"
     const val NAME = "name"
     const val QUERY = "query"
@@ -55,4 +56,7 @@ object JsonKeys {
     const val ORDER_DATE = "orderDate"
     const val IDEMPOTENCY_KEY = "idempotencyKey"
     const val LAST_PURCHASE_PRICE = "lastPurchasePrice"
+    const val INSTRUMENT_KIND = "instrumentKind"
+    const val MIN_PRICE_INCREMENT = "minPriceIncrement"
+    const val ID_TYPE = "idType"
 }

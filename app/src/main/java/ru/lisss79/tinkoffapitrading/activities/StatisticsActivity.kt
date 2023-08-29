@@ -75,7 +75,7 @@ class StatisticsActivity : AppCompatActivity() {
         val deals = getDeals(file)
         if (deals.size > 1) {
             var index = 0
-            while (index < deals.size - 2) {
+            while (index < deals.size - 1) {
                 val deal1 = deals[index]
                 val deal2 = deals[index + 1]
                 if ((deal1.figi == deal2.figi) && (deal1.quantity == deal2.quantity)
@@ -85,6 +85,7 @@ class StatisticsActivity : AppCompatActivity() {
                     index++
                 }
                 index++
+
             }
         } else builder.append("Нет данных")
         return builder.toString()
@@ -103,7 +104,9 @@ class StatisticsActivity : AppCompatActivity() {
         }
 
         val deals = getDeals(file)
-        if (deals.isNotEmpty()) deals.forEach { builder.append(getLine(it)).append("\n") }
+        if (deals.isNotEmpty()) deals.withIndex().forEach {
+            builder.append(it.index).append(". ").append(getLine(it.value)).append("\n")
+        }
         else builder.append("Нет данных")
         return builder.toString()
     }

@@ -30,6 +30,12 @@ var TOKEN = ""
 // Тикер рабочего инструмента
 var INSTRUMENT_TICKER = ""
 
+// Тип рабочего инструмента
+const val MY_INSTRUMENT_KIND = "INSTRUMENT_TYPE_ETF"
+
+// Тип id для запроса данных по инструменту
+const val MY_ID_TYPE = "INSTRUMENT_ID_TYPE_UID"
+
 // Основная рабочая валюта
 const val TRADING_CURRENCY = "rub"
 
@@ -64,9 +70,6 @@ var BEST_PRICE_QUANTITY_TOLERANCE = 0.7f
 
 // Цена продажи выше цены покупки?
 var SELLING_PRICE_HIGHER = SellingPriceHigher.defaultValue
-
-// Шаг цены лота. Как же его сцуко получить через API??
-var PRICE_STEP = 0.01f
 
 // Приоритет определения цены
 // Для торгового дня
@@ -138,37 +141,47 @@ class RobotReceiver : BroadcastReceiver() {
             val bcIntent = Intent(context, RobotReceiver::class.java)
             scheduleNext = intent.getBooleanExtra(SCHEDULE_NEXT, true)
 
-            if (scheduleNext) {
-                val pi = PendingIntent.getBroadcast(context, 0, bcIntent,
-                    PendingIntent.FLAG_NO_CREATE)
-                pi?.cancel()
-            }
-
             // Начинаем лог, записываем данные о состоянии телефона,
             // получаем данные о дне и следующем запуске робота
             println("OnReceive")
             logFile = File(context.getExternalFilesDir(null), "logfile.txt")
             robotTrades = File(context.getExternalFilesDir(null), "robot.txt")
-            logFile.appendText("${Instant.now()} starting robot\n")
-            if (powerManager.isDeviceIdleMode) logFile.appendText("Device is in idle mode now\n")
+            logFile.appendText("${Instant.now()} запускаем робота\n")
+
+            // Определяем режим запуска. Для рабочего режима обнуляем планировщик.
+            if (scheduleNext) {
+                val pi = PendingIntent.getBroadcast(
+                    context, 0, bcIntent,
+                    PendingIntent.FLAG_NO_CREATE
+                )
+                pi?.cancel()
+                logFile.appendText("Запуск в рабочем режиме\n")
+            } else logFile.appendText("Запуск в режиме просмотра\n")
+
+            if (powerManager.isDeviceIdleMode)
+                logFile.appendText("Устройство находится в спящем режиме\n")
             if (!powerManager.isIgnoringBatteryOptimizations(context.packageName))
-                logFile.appendText("Battery optimization turned ON!\n")
+                logFile.appendText("Включена оптимизация расхода батареи!\n")
 
             dayInfo = getTradingDayState()
-            logFile.appendText("Trading Day State: $dayInfo\n")
+            logFile.appendText("Состояние торгового дня: $dayInfo\n")
             val (alarmTime, exact) = getMilliSecOfNextWork(dayInfo)
 
 
             // Если произошла ошибка чтения данных, просто перепланировать робота
             if (dayInfo == TradingDayState.ERROR) {
-                logFile.appendText("Stop working due to an error\n")
-                println("Stop working due to an error")
+                logFile.appendText("Ошибка получения данных о торговом дне\n")
+                println("Ошибка получения данных о торговом дне")
+                config.error = "Невозможно данных о торговом дне"
                 planNextAlarm(alarmTime, exact, context, intent)
                 return@execute
             }
 
             // Получить основные данные и прекратить работу, если не удалось
             if (!getTradingData()) {
+                logFile.appendText("Ошибка получения торговых данных\n")
+                println("Ошибка получения торговых данных")
+                config.error = "Невозможно получить торговые данные"
                 planNextAlarm(alarmTime, exact, context, intent)
                 return@execute
             }
@@ -179,24 +192,25 @@ class RobotReceiver : BroadcastReceiver() {
 
             // Если торги на бирже закрыты, просто перепланировать робота
             if (!dayInfo.isTradingAvailable) {
-                logFile.appendText("Now is not trading time\n")
-                println("Not trading day")
+                logFile.appendText("Сейчас торги не ведутся\n")
+                println("Сейчас торги не ведутся")
                 planNextAlarm(alarmTime, exact, context, intent)
                 return@execute
             }
 
             // Если вечер и торги вечером запрещены
             else if (dayInfo.isEvening && !EVENING_TRADES) {
-                logFile.appendText("Evening trades are not allowed\n")
-                println("Evening trades are not allowed")
+                logFile.appendText("Торги вечером запрещены в настройках\n")
+                println("Торги вечером запрещены в настройках")
+                getActiveOrders()
                 planNextAlarm(alarmTime, exact, context, intent)
                 return@execute
             }
 
             // Если торги по инструменту закрыты, просто перепланировать робота
             else if (!config.tradesAvailable) {
-                logFile.appendText("Trades of the instrument is not available\n")
-                println("Trades of the instrument is not available")
+                logFile.appendText("Торги инструментом сейчас недоступны\n")
+                println("Торги инструментом сейчас недоступны")
                 planNextAlarm(alarmTime, exact, context, intent)
                 return@execute
             }
@@ -205,20 +219,38 @@ class RobotReceiver : BroadcastReceiver() {
             else {
                 // Получаем и сохраняем цены, выбранные по заданному критерию
                 val (bidPrice, askPrice) = getPrices()
+
+                // Если значения цен не получены, перепланировать робота и закончить
+                if (bidPrice == 0f || askPrice == 0f) {
+                    logFile.appendText("Невозможно получить данные о текущих ценах\n")
+                    println("Невозможно получить данные о текущих ценах")
+                    config.error = "Невозможно получить данные о текущих ценах"
+                    planNextAlarm(alarmTime, exact, context, intent)
+                    return@execute
+                }
+
                 config.selectedPurchasePrice = bidPrice
                 config.selectedSellingPrice = askPrice
                 getActiveOrders()
-                if (scheduleNext) order = robotCycle(bidPrice, askPrice)
-                logFile.appendText("Trading data:\n")
-                logFile.appendText(config.toString() + "\n\n")
-                if (order.instrumentId.isNotEmpty()) {
-                    logFile.appendText("Order created: $order \n")
-                } else if (order.direction == Direction.ORDER_DIRECTION_UNSPECIFIED) {
-                    logFile.appendText("No need to create new order\n")
+                if (scheduleNext) {
+                    order = robotCycle(bidPrice, askPrice)
+                    logFile.appendText("Торговые данные:\n")
+                    logFile.appendText(config.toString() + "\n\n")
+                    if (order.instrumentId.isNotEmpty()) {
+                        logFile.appendText("Создана заявка: $order \n")
+                    } else if (order.direction == Direction.ORDER_DIRECTION_UNSPECIFIED) {
+                        logFile.appendText("Создавать заявку не нужно\n")
+                    } else {
+                        logFile.appendText(
+                            "Невозможно создать заявку в направлении" +
+                                    " ${order.direction.rus_name}\n"
+                        )
+                    }
                 } else {
-                    logFile.appendText("Can't create order in direction ${order.direction.rus_name}\n")
+                    logFile.appendText("Режим просмотра, создавать заявку не нужно\n")
                 }
-                logFile.appendText("${Instant.now()} ending robot\n\n")
+
+                logFile.appendText("${Instant.now()} завершаем работу работа\n\n")
             }
 
             // Установить Alarm на новое время
@@ -301,15 +333,15 @@ class RobotReceiver : BroadcastReceiver() {
             } else {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTime, pi)
             }
-            println("New alarm set")
+            println("Запланирован новый запуск робота")
             logFile.appendText(
-                "New ${if (exact) "EXACT" else "inexact"} " +
-                        "alarm set at ${Date(alarmTime).toInstant()}.\n\n"
+                "Новый ${if (exact) "ТОЧНЫЙ" else "неточный"} " +
+                        "запуск робота запланирован на ${Date(alarmTime).toInstant()}.\n\n"
             )
             val editor = prefs.edit()
             editor.putLong(PLAN_TIME, alarmTime)
             editor.apply()
-        }
+        } else logFile.appendText("\n")
 
         val resultReceiver = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(RECEIVER, ResultReceiver::class.java)
@@ -343,6 +375,7 @@ class RobotReceiver : BroadcastReceiver() {
 
         if (!dayInfo.isTradingAvailable) {
             println("Сейчас торгов нет")
+            logFile.appendText("Сейчас торги не ведутся\n")
             return PostOrder()
         }
 
@@ -351,6 +384,7 @@ class RobotReceiver : BroadcastReceiver() {
             config.activeOrders > 0 -> {
                 var postOrder = PostOrder()
                 println("Заявка уже выставлена")
+                logFile.appendText("Заявка уже выставлена\n")
                 if (config.activeOrderDirection == Direction.ORDER_DIRECTION_BUY) {
 
                     // Условие замены заявки на покупку
@@ -360,7 +394,7 @@ class RobotReceiver : BroadcastReceiver() {
                             && !REPLACE_ORDERS_UP)
                     if (condition) {
                         println("Надо заявку менять!")
-                        logFile.appendText("The order will be changed!\n")
+                        logFile.appendText("Заявка будет заменена!\n")
                         if (REPLACE_ORDERS_ENABLED) {
                             val quantity = config.activeOrdersQuantity.toString()
                             val price = Price.parse(bidPrice)
@@ -371,7 +405,7 @@ class RobotReceiver : BroadcastReceiver() {
                                 ReplaceOrder(quantity, price, accountId, orderId, key)
                             val replaceOrderResponse = api.replaceOrder(replaceOrder).get()
                             replaceOrderResponse?.apply {
-                                logFile.appendText("Order is changed\n")
+                                logFile.appendText("Заявка заменена\n")
                                 checkForLastOrder()
                                 robotTrades.appendText(toJsonLog())
                                 robotTrades.appendText("\n")
@@ -384,7 +418,8 @@ class RobotReceiver : BroadcastReceiver() {
                                 )
                             }
                         } else {
-                            println("Но замена заявок запрещена.")
+                            println("Но замена заявок запрещена")
+                            logFile.appendText("Но замена заявок запрещена!\n")
                         }
 
                     }
@@ -397,7 +432,7 @@ class RobotReceiver : BroadcastReceiver() {
                             && !REPLACE_ORDERS_UP)
                     if (condition) {
                         println("Надо заявку менять!")
-                        robotTrades.appendText("The order will be changed!\n")
+                        logFile.appendText("Заявка будет заменена!\n")
                         if (REPLACE_ORDERS_ENABLED) {
                             val quantity = config.activeOrdersQuantity.toString()
                             val price = Price.parse(askPrice)
@@ -408,7 +443,7 @@ class RobotReceiver : BroadcastReceiver() {
                                 ReplaceOrder(quantity, price, accountId, orderId, key)
                             val replaceOrderResponse = api.replaceOrder(replaceOrder).get()
                             replaceOrderResponse?.apply {
-                                logFile.appendText("Order is changed\n")
+                                logFile.appendText("Заявка заменена\n")
                                 checkForLastOrder()
                                 robotTrades.appendText(toJsonLog())
                                 robotTrades.appendText("\n")
@@ -421,7 +456,8 @@ class RobotReceiver : BroadcastReceiver() {
                                 )
                             }
                         } else {
-                            println("Но замена заявок запрещена.")
+                            println("Но замена заявок запрещена")
+                            logFile.appendText("Но замена заявок запрещена!\n")
                         }
 
                     }
@@ -453,6 +489,7 @@ class RobotReceiver : BroadcastReceiver() {
                     postOrder
                 } else {
                     println("Невозможно создать заявку: не определена цена")
+                    logFile.appendText("Невозможно создать заявку: не определена цена\n")
                     PostOrder().apply {
                         direction = Direction.ORDER_DIRECTION_SELL
                     }
@@ -485,6 +522,7 @@ class RobotReceiver : BroadcastReceiver() {
                     postOrder
                 } else {
                     println("Невозможно создать заявку: не определена цена")
+                    logFile.appendText("Невозможно создать заявку: не определена цена\n")
                     PostOrder().apply {
                         direction = Direction.ORDER_DIRECTION_BUY
                     }
@@ -509,7 +547,7 @@ class RobotReceiver : BroadcastReceiver() {
         if (lastOrderId.isNotEmpty()) {
             val lastOrder = api.getOrderState(config.accountId, lastOrderId).get()
             when (lastOrder?.executionReportStatus) {
-                // Заявка отменена отклонена
+                // Заявка отменена или отклонена
                 ExecutionReportStatus.EXECUTION_REPORT_STATUS_CANCELLED,
                 ExecutionReportStatus.EXECUTION_REPORT_STATUS_REJECTED -> {
                     lastOrder.orderDate = Instant.now()
@@ -605,10 +643,14 @@ class RobotReceiver : BroadcastReceiver() {
                 ?: throw Exception("No account info")
             config.accountId = accountId
 
-            val instruments = api.findInstruments(INSTRUMENT_TICKER).get()
+            val instruments = api.findInstruments(INSTRUMENT_TICKER, MY_INSTRUMENT_KIND).get()
                 ?: throw Exception("Can't find the instrument")
             config.instrumentId = instruments.instruments[0].uid
             config.figi = instruments.instruments[0].figi
+
+            val etf = api.etfBy(config.instrumentId, MY_ID_TYPE).get()
+                ?: throw Exception("Can't get instrument info")
+            config.minPriceIncrement = etf.minPriceIncrement.value
 
             val positions = api.getPositions(config.accountId).get()
                 ?: throw Exception("Can't find the positions")
@@ -622,7 +664,7 @@ class RobotReceiver : BroadcastReceiver() {
             config.tradesAvailable =
                 status.tradingStatus.isTradingAvailable &&
                         status.limitOrderAvailableFlag == true && status.apiTradeAvailableFlag == true
-            logFile.appendText("Trading data got successfully\n")
+            logFile.appendText("Торговые данные успешно получены\n")
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -731,11 +773,13 @@ class RobotReceiver : BroadcastReceiver() {
         }
 
         // Изменение цены продажи, если она должна быть выше цены покупки и известна цена покупки
+        val oneStepHigherPrice = kotlin.math
+            .round((config.lastPurchasePrice + config.minPriceIncrement) * 100) / 100
         val result = when {
             SELLING_PRICE_HIGHER == SellingPriceHigher.EXACTLY_ONE_STEP &&
-                    config.lastPurchasePrice > 0f -> pair.first to config.lastPurchasePrice + PRICE_STEP
+                    config.lastPurchasePrice > 0f -> pair.first to oneStepHigherPrice
             SELLING_PRICE_HIGHER == SellingPriceHigher.ONE_STEP_OR_MORE -> pair.first to
-                    pair.second.coerceAtLeast(config.lastPurchasePrice + PRICE_STEP)
+                    pair.second.coerceAtLeast(oneStepHigherPrice)
             else -> pair
         }
         return result

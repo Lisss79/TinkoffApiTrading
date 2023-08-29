@@ -21,4 +21,11 @@
     <string name="recent_interval_min">recent_interval_min</string>
     <string name="title_activity_log">LogActivity</string>
 
+    <!-- Массивы с инструментами для работы -->
+    <array name="tickers">
+        <item>TBRU</item>
+        <item>TRUR</item>
+        <item>хуйня</item>
+    </array>
+
 </resources>
