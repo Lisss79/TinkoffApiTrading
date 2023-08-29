@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'ru.lisss79.tinkoffapitrading'
+    namespace 'ru.lisss79.tinkofftradingrobot'
     compileSdk 33
 
     defaultConfig {
-        applicationId "ru.lisss79.tinkoffapitrading"
+        applicationId "ru.lisss79.tinkofftradingrobot"
         minSdk 26
         targetSdk 33
         versionCode 1

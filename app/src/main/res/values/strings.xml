@@ -1,6 +1,8 @@
 <resources>
-    <string name="app_name">TinkoffApiTrading</string>
-    <string name="title_activity_settings">SettingsActivity</string>
+    <string name="app_name">Trading Robot</string>
+    <string name="title_activity_settings">Настройки</string>
+    <string name="title_activity_log">Логи</string>
+    <string name="title_activity_statistics">Статистика</string>
 
     <string name="ACCOUNT">account</string>
     <string name="TOKEN">token</string>
@@ -19,7 +21,6 @@
     <string name="money_after_spent">money_after_spent</string>
     <string name="main_request_delay_min">main_request_delay_min</string>
     <string name="recent_interval_min">recent_interval_min</string>
-    <string name="title_activity_log">LogActivity</string>
 
     <!-- Массивы с инструментами для работы -->
     <array name="tickers">

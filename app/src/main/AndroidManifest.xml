@@ -24,6 +24,7 @@
         <activity
             android:name=".activities.StatisticsActivity"
             android:exported="false"
+            android:label="@string/title_activity_statistics"
             android:parentActivityName=".activities.MainActivity" />
         <activity
             android:name=".activities.SettingsActivity"
