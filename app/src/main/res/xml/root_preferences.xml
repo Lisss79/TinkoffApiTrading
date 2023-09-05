@@ -102,8 +102,8 @@
 
         <ListPreference
             android:defaultValue=""
-            android:entries="@array/tickers"
-            android:entryValues="@array/tickers"
+            android:entries="@array/instruments_names"
+            android:entryValues="@array/instruments_tickers"
             android:key="@string/TICKER"
             android:title="Тикер инструмента"
             app:useSimpleSummaryProvider="true" />

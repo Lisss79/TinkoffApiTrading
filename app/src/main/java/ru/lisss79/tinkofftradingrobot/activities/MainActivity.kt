@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import ru.lisss79.tinkofftradingrobot.*
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS_NAMES
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
@@ -60,8 +61,10 @@ class MainActivity : AppCompatActivity() {
         val accounts = api.getAccounts().get()
         if (accounts != null) {
             val length = accounts.accounts.size
-            val values = Array(length) { accounts.accounts[it].id }
-            intentSettings.putExtra(ACCOUNTS, values)
+            val accountsIds = Array(length) { accounts.accounts[it].id }
+            val accountsNames = Array(length) { accounts.accounts[it].name }
+            intentSettings.putExtra(ACCOUNTS, accountsIds)
+            intentSettings.putExtra(ACCOUNTS_NAMES, accountsNames)
         }
 
         receiver = setReceiver()

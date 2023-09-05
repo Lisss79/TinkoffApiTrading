@@ -4,6 +4,7 @@ import org.json.JSONObject
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCESS_LEVEL
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ID
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.NAME
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.STATUS
 
 class GetAccountsResponse(val accounts: List<Account>) {
@@ -34,21 +35,26 @@ class GetAccountsResponse(val accounts: List<Account>) {
         }
     }
 
-    class Account(val id: String = "",
-                  val status: String = "",
-                  val accessLevel: String = "") {
+    class Account(
+        val id: String = "",
+        val name: String = "",
+        val status: String = "",
+        val accessLevel: String = ""
+    ) {
 
-        companion object{
+        companion object {
             fun parse(response: String): Account {
                 val json = JSONObject(response)
                 return (parse(json))
             }
+
             fun parse(responseJson: JSONObject): Account {
                 return try {
                     val id = responseJson.getString(ID)
+                    val name = responseJson.getString(NAME)
                     val status = responseJson.getString(STATUS)
                     val accessLevel = responseJson.getString(ACCESS_LEVEL)
-                    Account(id, status, accessLevel)
+                    Account(id, name, status, accessLevel)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Account()

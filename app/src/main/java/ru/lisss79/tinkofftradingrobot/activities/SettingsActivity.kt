@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
 import android.text.TextUtils
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.*
 import ru.lisss79.tinkofftradingrobot.PricePriority
@@ -11,17 +12,23 @@ import ru.lisss79.tinkofftradingrobot.R
 import ru.lisss79.tinkofftradingrobot.SellingPriceHigher
 import ru.lisss79.tinkofftradingrobot.TRADING_CURRENCY
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS_NAMES
 import kotlin.system.exitProcess
 
 
 var accounts: Array<String>? = null
+var accountsNames: Array<String>? = null
 
 class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.settings_activity)
-        if (intent.hasExtra(ACCOUNTS)) accounts = intent.getStringArrayExtra(ACCOUNTS)
+        if (intent.hasExtra(ACCOUNTS) && intent.hasExtra(ACCOUNTS_NAMES)) {
+            accounts = intent.getStringArrayExtra(ACCOUNTS)
+            accountsNames = intent.getStringArrayExtra(ACCOUNTS_NAMES)
+        }
+
         if (savedInstanceState == null) {
             supportFragmentManager
                 .beginTransaction()
@@ -61,17 +68,23 @@ class SettingsActivity : AppCompatActivity() {
             val accountPref = findPreference<ListPreference>(getString(R.string.ACCOUNT))
             if (accounts != null) {
                 accountPref?.entryValues = accounts
-                accountPref?.entries = accounts
+                accountPref?.entries = accountsNames
             } else {
                 accountPref?.entryValues = Array(0) { "Нет данных" }
                 accountPref?.entries = Array(0) { "Нет данных" }
             }
+            accountPref?.setOnPreferenceChangeListener { _, newValue ->
+                val text = String.format("Id выбранного счета: %s", newValue)
+                Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+                false
+            }
 
             // Меню выбора приоритета для торгового дня
-            val tradingPref = findPreference<ListPreference>(getString(R.string.trading_day_priority))
+            val tradingPref =
+                findPreference<ListPreference>(getString(R.string.trading_day_priority))
             tradingPref?.entryValues = PricePriority.getEntries()
             tradingPref?.entries = PricePriority.getRusNames()
-            if(tradingPref?.value == null)
+            if (tradingPref?.value == null)
                 tradingPref?.setValueIndex(PricePriority.defaultValue.ordinal)
 
             // Меню выбора приоритета для вечерней сессии

@@ -23,10 +23,15 @@
     <string name="recent_interval_min">recent_interval_min</string>
 
     <!-- Массивы с инструментами для работы -->
-    <array name="tickers">
+    <array name="instruments_names">
+        <item>Тинькофф Bonds</item>
+        <item>Тинькофф Вечный</item>
+        <item>Тинькофф iMOEX</item>
+    </array>
+    <array name="instruments_tickers">
         <item>TBRU</item>
         <item>TRUR</item>
-        <item>хуйня</item>
+        <item>TMOS</item>
     </array>
 
 </resources>

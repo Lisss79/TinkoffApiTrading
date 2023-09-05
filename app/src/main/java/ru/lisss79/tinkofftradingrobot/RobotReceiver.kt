@@ -168,7 +168,7 @@ class RobotReceiver : BroadcastReceiver() {
             val (alarmTime, exact) = getMilliSecOfNextWork(dayInfo)
 
 
-            // Если произошла ошибка чтения данных, просто перепланировать робота
+            // Если произошла ошибка чтения данных о торговом дне, просто перепланировать робота
             if (dayInfo == TradingDayState.ERROR) {
                 logFile.appendText("Ошибка получения данных о торговом дне\n")
                 println("Ошибка получения данных о торговом дне")
