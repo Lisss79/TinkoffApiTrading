@@ -29,8 +29,8 @@ class LogActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_log)
 
-        logFile = File(getExternalFilesDir(null), "logfile.txt")
-        robotTrades = File(getExternalFilesDir(null), "robot.txt")
+        logFile = File(getExternalFilesDir(null), getString(R.string.logfile_name))
+        robotTrades = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
         scrollViewLog = findViewById(R.id.scrollViewLog)
         textViewLog = findViewById(R.id.textViewLog)
         readAndShow(logFile)

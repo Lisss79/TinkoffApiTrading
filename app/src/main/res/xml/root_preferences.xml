@@ -1,118 +1,24 @@
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="Определение цены">
+    <Preference
+        app:fragment="ru.lisss79.tinkofftradingrobot.activities.fragments.PriceSettingsFragment"
+        app:key="@string/price_preferences"
+        app:title="Настройки определения цены" />
 
-        <ListPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/trading_day_priority"
-            android:title="Дневная торговая сессия" />
+    <Preference
+        app:fragment="ru.lisss79.tinkofftradingrobot.activities.fragments.AlgorithmSettingsFragment"
+        app:key="@string/algorithm_preferences"
+        app:title="Настройки алгоритма" />
 
-        <ListPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/trading_evening_priority"
-            android:title="Вечерняя торговая сессия" />
+    <Preference
+        app:fragment="ru.lisss79.tinkofftradingrobot.activities.fragments.TimeSettingsFragment"
+        app:key="@string/time_preferences"
+        app:title="Настройки времени заявок" />
 
-        <ListPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/start_day_priority"
-            android:title="Начало торгового дня" />
+    <Preference
+        app:fragment="ru.lisss79.tinkofftradingrobot.activities.fragments.MainSettingsFragment"
+        app:key="@string/main_preferences"
+        app:title="Главные настройки" />
 
-        <ListPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/auction_priority"
-            android:title="Аукцион открытия" />
-
-        <ListPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/other_priority"
-            android:title="Прочие ситуации" />
-
-    </PreferenceCategory>
-
-
-    <PreferenceCategory app:title="Настройки алгоритма">
-
-        <ListPreference
-            android:key="@string/selling_price_higher"
-            android:title="Цена продажи выше покупки"
-            app:useSimpleSummaryProvider="true" />
-
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
-            app:defaultValue="0.7"
-            app:key="@string/best_price_quantity_tolerance"
-            app:title="Допуск объема лучшей цены"
-            app:useSimpleSummaryProvider="true" />
-
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
-            app:defaultValue="0.05"
-            android:key="@string/recent_trades_quantity_tolerance"
-            android:title="Допуск объема последней цены"
-            app:useSimpleSummaryProvider="true" />
-
-        <CheckBoxPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/replace_order_enabled"
-            android:defaultValue="false"
-            android:summaryOn="Замена заявок разрешена"
-            android:summaryOff="Замена заявок запрещена"
-            android:title="Замена заявок" />
-
-        <CheckBoxPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/replace_order_up"
-            android:defaultValue="false"
-            app:enabled="false"
-            android:summaryOn="Замена заявок только вверх"
-            android:summaryOff="Замена заявок вверх и вниз"
-            android:title="Замена заявок только вверх" />
-
-        <CheckBoxPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/evening_trades"
-            android:defaultValue="false"
-            android:title="Торговля вечером" />
-
-        <EditTextPreference
-            android:defaultValue="900"
-            android:key="@string/money_after_spent"
-            app:useSimpleSummaryProvider="true"
-            android:title="Минимальный остаток денег" />
-
-        <EditTextPreference
-            android:defaultValue="30"
-            android:key="@string/main_request_delay_min"
-            app:useSimpleSummaryProvider="false"
-            android:title="Интервал запросов к API" />
-
-        <EditTextPreference
-            android:defaultValue="60"
-            android:key="@string/recent_interval_min"
-            app:useSimpleSummaryProvider="false"
-            android:title="Начало торгового дня" />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory app:title="Исходные данные">
-
-        <EditTextPreference
-            app:key="@string/TOKEN"
-            app:title="Токен"
-            app:useSimpleSummaryProvider="false" />
-
-        <ListPreference
-            android:defaultValue=""
-            android:entries="@array/instruments_names"
-            android:entryValues="@array/instruments_tickers"
-            android:key="@string/TICKER"
-            android:title="Тикер инструмента"
-            app:useSimpleSummaryProvider="true" />
-
-        <ListPreference
-            app:useSimpleSummaryProvider="true"
-            android:key="@string/ACCOUNT"
-            android:title="Брокерский счет" />
-
-    </PreferenceCategory>
 
 </PreferenceScreen>

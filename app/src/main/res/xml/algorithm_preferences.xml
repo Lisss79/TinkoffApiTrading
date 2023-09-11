@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="Настройки алгоритма">
+
+        <ListPreference
+            android:key="@string/selling_price_higher"
+            android:title="Цена продажи выше покупки"
+            app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            app:defaultValue="0.7"
+            app:key="@string/best_price_quantity_tolerance"
+            app:title="Допуск объема лучшей цены"
+            app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            android:key="@string/recent_trades_quantity_tolerance"
+            android:title="Допуск объема последней цены"
+            app:defaultValue="0.05"
+            app:useSimpleSummaryProvider="true" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="@string/replace_order_enabled"
+            android:summaryOff="Замена заявок запрещена"
+            android:summaryOn="Замена заявок разрешена"
+            android:title="Замена заявок"
+            app:useSimpleSummaryProvider="true" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="@string/replace_order_up"
+            android:summaryOff="Замена заявок вверх и вниз"
+            android:summaryOn="Замена заявок только вверх"
+            android:title="Замена заявок только вверх"
+            app:enabled="false"
+            app:useSimpleSummaryProvider="true" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="@string/evening_trades"
+            android:title="Торговля вечером"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:defaultValue="900"
+            android:key="@string/money_after_spent"
+            android:title="Минимальный остаток денег"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:defaultValue="30"
+            android:key="@string/main_request_delay_min"
+            android:title="Интервал запросов к API"
+            app:useSimpleSummaryProvider="false" />
+
+        <EditTextPreference
+            android:defaultValue="60"
+            android:key="@string/recent_interval_min"
+            android:title="Начало торгового дня"
+            app:useSimpleSummaryProvider="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -5,22 +5,33 @@
     <string name="title_activity_statistics">Статистика</string>
 
     <string name="ACCOUNT">account</string>
-    <string name="TOKEN">token</string>
     <string name="TICKER">ticker</string>
-    <string name="trading_day_priority">trading_day_priority</string>
-    <string name="trading_evening_priority">trading_evening_priority</string>
-    <string name="start_day_priority">start_day_priority</string>
+    <string name="TOKEN">token</string>
+    <string name="algorithm_preferences">algorithm_preferences</string>
     <string name="auction_priority">auction_priority</string>
-    <string name="other_priority">other_priority</string>
     <string name="best_price_quantity_tolerance">best_price_quantity_tolerance</string>
+    <string name="day_auction_time">day_auction_time</string>
+    <string name="evening_auction_time">evening_auction_time</string>
+    <string name="evening_trades">evening_trades</string>
+    <string name="load_settings">load_settings</string>
+    <string name="logfile_name">logfile.txt</string>
+    <string name="main_preferences">main_preferences</string>
+    <string name="main_request_delay_min">main_request_delay_min</string>
+    <string name="money_after_spent">money_after_spent</string>
+    <string name="other_priority">other_priority</string>
+    <string name="price_preferences">price_preferences</string>
+    <string name="recent_interval_min">recent_interval_min</string>
+    <string name="recent_trades_quantity_tolerance">recent_trades_quantity_tolerance</string>
     <string name="replace_order_enabled">replace_order_enabled</string>
     <string name="replace_order_up">replace_order_up</string>
-    <string name="evening_trades">evening_trades</string>
+    <string name="robotfile_name">robot.txt</string>
+    <string name="save_settings">save_settings</string>
     <string name="selling_price_higher">selling_price_higher</string>
-    <string name="recent_trades_quantity_tolerance">recent_trades_quantity_tolerance</string>
-    <string name="money_after_spent">money_after_spent</string>
-    <string name="main_request_delay_min">main_request_delay_min</string>
-    <string name="recent_interval_min">recent_interval_min</string>
+    <string name="shared_prefs_dir">shared_prefs</string>
+    <string name="start_day_priority">start_day_priority</string>
+    <string name="time_preferences">time_preferences</string>
+    <string name="trading_day_priority">trading_day_priority</string>
+    <string name="trading_evening_priority">trading_evening_priority</string>
 
     <!-- Массивы с инструментами для работы -->
     <array name="instruments_names">

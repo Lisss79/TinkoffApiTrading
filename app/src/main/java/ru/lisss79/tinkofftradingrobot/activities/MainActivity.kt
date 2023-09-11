@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+        println("onCreate!!!")
 
         requestBatteryPermission()
         val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)

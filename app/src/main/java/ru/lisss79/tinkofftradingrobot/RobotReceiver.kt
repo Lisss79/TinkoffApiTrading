@@ -19,6 +19,8 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
 import java.io.File
 import java.time.Instant
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.floor
@@ -41,6 +43,12 @@ const val TRADING_CURRENCY = "rub"
 
 // Идентификатор биржи для работы
 const val EXCHANGE_TRADES = "MOEX_PLUS"
+
+// Значение по умолчанию для времени начала дневного аукциона
+const val DAY_AUCTION_TIME_DEFAULT = "06:51:01"
+
+// Значение по умолчанию для времени начала вечернего аукциона
+const val EVENING_AUCTION_TIME_DEFAULT = "16:01:01"
 
 // Интервал времени с начала торгов, когда можно рассчитывать цену по сегодняшнему дню
 var RECENT_INTERVAL_MIN = 60
@@ -115,13 +123,17 @@ class RobotReceiver : BroadcastReceiver() {
 
     // Режим работы Мосбиржи
     private val hourBeforeStartTimeDay = getCalendarFromTime(6, 0, 1)
-    private val startTimeAuctionDay = getCalendarFromTime(6, 51, 1)
+
+    // private val startTimeAuctionDay = getCalendarFromTime(6, 51, 1)
+    private var startTimeAuctionDay = getCalendarFromString(DAY_AUCTION_TIME_DEFAULT)
     private val startTimeDay = getCalendarFromTime(7, 0, 1)
     private val startTimeDayPlusInterval = (startTimeDay.clone() as Calendar).apply {
         add(Calendar.MINUTE, RECENT_INTERVAL_MIN)
     }
     private val endTimeDay = getCalendarFromTime(15, 30, 1)
-    private val startTimeAuctionEvening = getCalendarFromTime(16, 1, 1)
+
+    // private val startTimeAuctionEvening = getCalendarFromTime(16, 1, 1)
+    private var startTimeAuctionEvening = getCalendarFromString(EVENING_AUCTION_TIME_DEFAULT)
     private val startTimeEvening = getCalendarFromTime(16, 5, 1)
     private val endTimeEvening = getCalendarFromTime(20, 50, 1)
 
@@ -144,8 +156,16 @@ class RobotReceiver : BroadcastReceiver() {
             // Начинаем лог, записываем данные о состоянии телефона,
             // получаем данные о дне и следующем запуске робота
             println("OnReceive")
-            logFile = File(context.getExternalFilesDir(null), "logfile.txt")
-            robotTrades = File(context.getExternalFilesDir(null), "robot.txt")
+            println(startTimeAuctionDay.time)
+            println(startTimeAuctionEvening.time)
+            logFile = File(
+                context.getExternalFilesDir(null),
+                context.getString(R.string.logfile_name)
+            )
+            robotTrades = File(
+                context.getExternalFilesDir(null),
+                context.getString(R.string.robotfile_name)
+            )
             logFile.appendText("${Instant.now()} запускаем робота\n")
 
             // Определяем режим запуска. Для рабочего режима обнуляем планировщик.
@@ -303,18 +323,35 @@ class RobotReceiver : BroadcastReceiver() {
         EVENING_TRADES = settingsPrefs.getBoolean(context
             .getString(R.string.evening_trades), false)
         RECENT_TRADES_QUANTITY_TOLERANCE = settingsPrefs
-            .getFloat(context.getString(R.string.recent_trades_quantity_tolerance),
-                RECENT_TRADES_QUANTITY_TOLERANCE)
+            .getFloat(
+                context.getString(R.string.recent_trades_quantity_tolerance),
+                RECENT_TRADES_QUANTITY_TOLERANCE
+            )
         MONEY_AFTER_SPENT = settingsPrefs
-            .getString(context.getString(R.string.money_after_spent),
-                MONEY_AFTER_SPENT.toString())?.toInt() ?: MONEY_AFTER_SPENT
+            .getString(
+                context.getString(R.string.money_after_spent),
+                MONEY_AFTER_SPENT.toString()
+            )?.toInt() ?: MONEY_AFTER_SPENT
         MAIN_DELAY_REQUESTS_MIN = settingsPrefs
-            .getString(context.getString(R.string.main_request_delay_min),
-                MAIN_DELAY_REQUESTS_MIN.toString())?.toInt() ?: MAIN_DELAY_REQUESTS_MIN
+            .getString(
+                context.getString(R.string.main_request_delay_min),
+                MAIN_DELAY_REQUESTS_MIN.toString()
+            )?.toInt() ?: MAIN_DELAY_REQUESTS_MIN
         RECENT_INTERVAL_MIN = settingsPrefs
-            .getString(context.getString(R.string.recent_interval_min),
-                RECENT_INTERVAL_MIN.toString())?.toInt() ?: RECENT_INTERVAL_MIN
-
+            .getString(
+                context.getString(R.string.recent_interval_min),
+                RECENT_INTERVAL_MIN.toString()
+            )?.toInt() ?: RECENT_INTERVAL_MIN
+        val textDay = settingsPrefs.getString(
+            context.getString(R.string.day_auction_time),
+            DAY_AUCTION_TIME_DEFAULT
+        ) ?: DAY_AUCTION_TIME_DEFAULT
+        startTimeAuctionDay = getCalendarFromString(textDay)
+        val textEvening = settingsPrefs.getString(
+            context.getString(R.string.evening_auction_time),
+            EVENING_AUCTION_TIME_DEFAULT
+        ) ?: EVENING_AUCTION_TIME_DEFAULT
+        startTimeAuctionEvening = getCalendarFromString(textEvening)
     }
 
     /**
@@ -353,6 +390,19 @@ class RobotReceiver : BroadcastReceiver() {
             bundle.putSerializable(CONFIG, config)
             bundle.putSerializable(ORDER, order)
             resultReceiver.send(0, bundle)
+        }
+    }
+
+    /**
+     * Получает
+     */
+    private fun getCalendarFromString(time: String): Calendar {
+        val nowUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+        val localTime = LocalTime.parse(time, DateTimeFormatter.ISO_TIME)
+        return nowUtc.apply {
+            set(Calendar.HOUR_OF_DAY, localTime.hour)
+            set(Calendar.MINUTE, localTime.minute)
+            set(Calendar.SECOND, localTime.second)
         }
     }
 

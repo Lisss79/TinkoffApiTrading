@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="Исходные данные">
+
+        <EditTextPreference
+            app:key="@string/TOKEN"
+            app:title="Токен"
+            app:useSimpleSummaryProvider="false" />
+
+        <ListPreference
+            android:defaultValue=""
+            android:entries="@array/instruments_names"
+            android:entryValues="@array/instruments_tickers"
+            android:key="@string/TICKER"
+            android:title="Тикер инструмента"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            android:key="@string/ACCOUNT"
+            android:title="Брокерский счет"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Загрузка/сохранение настроек">
+
+        <Preference
+            app:key="@string/save_settings"
+            app:title="Сохранить в файл" />
+
+        <Preference
+            app:key="@string/load_settings"
+            app:title="Загрузить из файла" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -24,7 +24,7 @@ class StatisticsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_statistics)
 
         val textViewStatistic = findViewById<TextView>(R.id.textViewStatistics)
-        robotTrades = File(getExternalFilesDir(null), "robot.txt")
+        robotTrades = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
         text = getDealsText(robotTrades)
         textViewStatistic.text = text
 

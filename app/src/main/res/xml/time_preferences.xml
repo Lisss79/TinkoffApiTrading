@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="Время заявок на аукционе">
+
+        <EditTextPreference
+            android:defaultValue="06:51:01"
+            app:key="@string/day_auction_time"
+            app:title="Дневной аукцион"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:defaultValue="16:01:01"
+            android:key="@string/evening_auction_time"
+            android:title="Вечерний аукцион"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
