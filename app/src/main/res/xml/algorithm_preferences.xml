@@ -9,18 +9,6 @@
             android:title="Цена продажи выше покупки"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
-            app:defaultValue="0.7"
-            app:key="@string/best_price_quantity_tolerance"
-            app:title="Допуск объема лучшей цены"
-            app:useSimpleSummaryProvider="true" />
-
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
-            android:key="@string/recent_trades_quantity_tolerance"
-            android:title="Допуск объема последней цены"
-            app:defaultValue="0.05"
-            app:useSimpleSummaryProvider="true" />
-
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="@string/replace_order_enabled"

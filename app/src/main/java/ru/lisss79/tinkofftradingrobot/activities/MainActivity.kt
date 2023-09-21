@@ -2,7 +2,10 @@ package ru.lisss79.tinkofftradingrobot.activities
 
 import android.annotation.SuppressLint
 import android.app.AlarmManager
+import android.app.AlertDialog
 import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
@@ -51,7 +54,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-        println("onCreate!!!")
 
         requestBatteryPermission()
         val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
@@ -81,20 +83,17 @@ class MainActivity : AppCompatActivity() {
         intentRobot.putExtra(RECEIVER, receiver)
         checkForAlarmPlanning()
 
+        // Обработка нажатия кнопки Start
         buttonConnect.setOnClickListener {
-            pbLoading.visibility = View.VISIBLE
-            intentRobot.putExtra(SCHEDULE_NEXT, true)
-            println("Starting Broadcast...")
-            sendBroadcast(intentRobot)
+            sendBroadcastToRobot(true)
         }
 
+        // Обработка нажатия кнопки Info
         buttonInfo.setOnClickListener {
-            pbLoading.visibility = View.VISIBLE
-            intentRobot.putExtra(SCHEDULE_NEXT, false)
-            println("Starting Broadcast...")
-            sendBroadcast(intentRobot)
+            sendBroadcastToRobot(false)
         }
 
+        // Обработка нажатия кнопки Stop
         buttonStop.setOnClickListener {
             val pi = PendingIntent.getBroadcast(
                 this, 0, intentRobot,
@@ -104,8 +103,20 @@ class MainActivity : AppCompatActivity() {
                 alarmManager.cancel(it)
                 it.cancel()
             }
-            checkForAlarmPlanning()
+            sendBroadcastToRobot(false)
         }
+    }
+
+    /**
+     * Отображение индикатора процесса и запуск рассылки для получения роботом.
+     * (Фактически запуск робота)
+     * @param scheduleNext должен ли робот планировать следующий запуск
+     */
+    private fun sendBroadcastToRobot(scheduleNext: Boolean) {
+        pbLoading.visibility = View.VISIBLE
+        intentRobot.putExtra(SCHEDULE_NEXT, scheduleNext)
+        println("Starting Broadcast...")
+        sendBroadcast(intentRobot)
     }
 
     private fun checkForAlarmPlanning() {
@@ -113,7 +124,7 @@ class MainActivity : AppCompatActivity() {
         val calNextTime = Calendar.getInstance()
         calNextTime.timeInMillis = nextTime
         val today = Calendar.getInstance()
-        val date = if(calNextTime.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH))
+        val date = if (calNextTime.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH))
             "СЕГОДНЯ"
         else if (calNextTime.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH) + 1)
             "ЗАВТРА"
@@ -133,6 +144,7 @@ class MainActivity : AppCompatActivity() {
             tvAlarmInfo.text = "НЕ ЗАПЛАНИРОВАН"
             tvAlarmInfo.setTextColor(Color.RED)
         }
+        //updateWidget()
     }
 
     @SuppressLint("BatteryLife")
@@ -176,8 +188,25 @@ class MainActivity : AppCompatActivity() {
                 if (order.accountId.isNotEmpty())
                     tvOrder.text = String.format("Выставлена новая заявка:\n%s", order.toString())
                 else tvOrder.text = "Новая заявка не выставлена"
+                updateWidget(config)
+
             }
         }
+
+    /**
+     * Обновляет содержимое виджета
+     */
+    private fun updateWidget(config: TradingConfig) {
+        val manager = AppWidgetManager.getInstance(applicationContext)
+        val component = ComponentName(applicationContext, RobotWidget::class.java)
+        val ids = manager.getAppWidgetIds(component)
+        if (ids.isNotEmpty()) {
+            val widgetIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+            widgetIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            widgetIntent.putExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, config)
+            sendBroadcast(widgetIntent)
+        }
+    }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
@@ -191,6 +220,16 @@ class MainActivity : AppCompatActivity() {
             R.id.log -> {
                 val intentLog = Intent(this, LogActivity::class.java)
                 startActivity(intentLog)
+            }
+            R.id.about -> {
+                val text = "Торговый робот Абрам ${BuildConfig.VERSION_NAME}\n" +
+                        "Build ${BuildConfig.VERSION_CODE}\n(c)2023 Lisss79 Studio"
+                val about = AlertDialog.Builder(this)
+                    .setTitle("О программе")
+                    .setMessage(text)
+                    .setIcon(R.drawable.ic_info)
+                    .setPositiveButton("OK", null)
+                about.show()
             }
         }
         return super.onOptionsItemSelected(item)

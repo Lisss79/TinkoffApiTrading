@@ -4,13 +4,12 @@ import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.BroadcastReceiver
-import android.content.Context
+import android.appwidget.AppWidgetManager
+import android.content.*
 import android.content.Context.MODE_PRIVATE
-import android.content.Intent
-import android.content.SharedPreferences
 import android.os.*
 import androidx.preference.PreferenceManager
+import ru.lisss79.tinkofftradingrobot.PricePriorityWithData.PricePriority
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.*
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
@@ -26,7 +25,6 @@ import java.util.concurrent.Executors
 import kotlin.math.floor
 
 // Токен для работы API
-//"t.O-a9O0hxOuer7O696kab-gSPVXxztxytHTvsP3KEUsdlxL87C5TnOrbHp76HnLHsiGxra7FfYTMuEVlupbxM1w"
 var TOKEN = ""
 
 // Тикер рабочего инструмента
@@ -56,10 +54,6 @@ var RECENT_INTERVAL_MIN = 60
 // Основной интервал обращений к API
 var MAIN_DELAY_REQUESTS_MIN = 30
 
-// Допуск в объеме торгов, ниже которого можно не учитывать сделки (< 1)
-// для расчета цены по последним сделкам
-var RECENT_TRADES_QUANTITY_TOLERANCE = 0.05f
-
 // Сколько денег оставлять после покупки (руб.)
 var MONEY_AFTER_SPENT = 900
 
@@ -73,27 +67,8 @@ var REPLACE_ORDERS_UP = true
 // Торговать ли в вечернюю сессию
 var EVENING_TRADES = false
 
-// Допуск в объеме торгов (от максимума) для определения лучшей цены
-var BEST_PRICE_QUANTITY_TOLERANCE = 0.7f
-
 // Цена продажи выше цены покупки?
 var SELLING_PRICE_HIGHER = SellingPriceHigher.defaultValue
-
-// Приоритет определения цены
-// Для торгового дня
-var TRADING_DAY_PRIORITY = PricePriority.defaultValue
-
-// Для вечерней сессии
-var TRADING_EVENING_PRIORITY = PricePriority.defaultValue
-
-// Для начала торгового дня
-var START_DAY_PRIORITY = PricePriority.defaultValue
-
-// Для аукциона открытия
-var AUCTION_PRIORITY = PricePriority.defaultValue
-
-// Для остальных случаев
-var OTHER_PRIORITY = PricePriority.defaultValue
 
 // Ключ для передачи данных из activity в broadcast receiver
 const val RECEIVER = "receiver"
@@ -110,6 +85,33 @@ class RobotReceiver : BroadcastReceiver() {
     private lateinit var api: TinkoffOpenApi
     private lateinit var context: Context
     private val config = TradingConfig()
+
+    // Приоритет определения цены
+    // Текущий приоритет
+    private var currentPriority: PricePriorityWithData = PricePriorityWithData()
+
+    // Для дневной сессии
+    private var tradingDayPriority: PricePriorityWithData = PricePriorityWithData()
+
+    // Для вечерней сессии
+    private var tradingEveningPriority: PricePriorityWithData = PricePriorityWithData()
+
+    // Для начала торгового дня
+    private var startDayPriority: PricePriorityWithData = PricePriorityWithData()
+
+    // Для аукциона открытия
+    private var auctionPriority: PricePriorityWithData = PricePriorityWithData()
+
+    // Для остальных случаев
+    private var otherPriority: PricePriorityWithData = PricePriorityWithData()
+
+    // Допуск количества при определении цены по последним
+    private var recentTradesQuantityTolerance =
+        PricePriorityWithData.getDefaultData(PricePriority.PRIORITY_RECENT_PRICE)
+
+    // Допуск объема при определении по стакану
+    private var bestPriceQuantityTolerance = PricePriorityWithData
+        .getDefaultData(PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY_TOLERANCE)
 
     private var order = PostOrder()                         // заявка для выставления
     private lateinit var dayInfo: TradingDayState           // состояние торгов сейчас
@@ -155,9 +157,7 @@ class RobotReceiver : BroadcastReceiver() {
 
             // Начинаем лог, записываем данные о состоянии телефона,
             // получаем данные о дне и следующем запуске робота
-            println("OnReceive")
-            println(startTimeAuctionDay.time)
-            println(startTimeAuctionEvening.time)
+            println("Calling onReceive of Robot")
             logFile = File(
                 context.getExternalFilesDir(null),
                 context.getString(R.string.logfile_name)
@@ -192,7 +192,7 @@ class RobotReceiver : BroadcastReceiver() {
             if (dayInfo == TradingDayState.ERROR) {
                 logFile.appendText("Ошибка получения данных о торговом дне\n")
                 println("Ошибка получения данных о торговом дне")
-                config.error = "Невозможно данных о торговом дне"
+                config.error = "Невозможно получить данные о торговом дне"
                 planNextAlarm(alarmTime, exact, context, intent)
                 return@execute
             }
@@ -280,6 +280,17 @@ class RobotReceiver : BroadcastReceiver() {
     }
 
     private fun getSettingsFromPrefs() {
+        fun getPricePriorityFromPrefs(
+            prefs: SharedPreferences, key: String, keyData: String
+        ): PricePriorityWithData {
+            val defName = PricePriority.defaultValue.name
+            val priority = PricePriority
+                .valueOf(prefs.getString(key, defName) ?: defName)
+            var data = prefs.getFloat(keyData, 0f)
+            if (data == 0f) data = PricePriorityWithData.getDefaultData(priority)
+            return PricePriorityWithData(priority, data)
+        }
+
         settingsPrefs = PreferenceManager.getDefaultSharedPreferences(context)
         TOKEN = settingsPrefs.getString(context.getString(R.string.TOKEN), "") ?: ""
         INSTRUMENT_TICKER = settingsPrefs.getString(context.getString(R.string.TICKER), "") ?: ""
@@ -289,44 +300,51 @@ class RobotReceiver : BroadcastReceiver() {
                 SellingPriceHigher.defaultValue.name
             ) ?: SellingPriceHigher.defaultValue.name
         )
-        TRADING_DAY_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(
-                context.getString(R.string.trading_day_priority),
-                PricePriority.defaultValue.name
-            ) ?: PricePriority.defaultValue.name
+
+        tradingDayPriority = getPricePriorityFromPrefs(
+            settingsPrefs,
+            context.getString(R.string.trading_day_priority),
+            context.getString(R.string.trading_day_priority_data)
         )
-        TRADING_EVENING_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(
-                context.getString(R.string.trading_evening_priority),
-                PricePriority.defaultValue.name
-            ) ?: PricePriority.defaultValue.name
+
+
+        tradingEveningPriority = getPricePriorityFromPrefs(
+            settingsPrefs,
+            context.getString(R.string.trading_evening_priority),
+            context.getString(R.string.trading_evening_priority_data)
         )
-        START_DAY_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(
-                context.getString(R.string.start_day_priority),
-                PricePriority.defaultValue.name
-            ) ?: PricePriority.defaultValue.name
+
+        startDayPriority = getPricePriorityFromPrefs(
+            settingsPrefs,
+            context.getString(R.string.start_day_priority),
+            context.getString(R.string.start_day_priority_data)
         )
-        AUCTION_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(context.getString(R.string.auction_priority),
-                PricePriority.defaultValue.name) ?: PricePriority.defaultValue.name)
-        OTHER_PRIORITY = PricePriority.valueOf(
-            settingsPrefs.getString(context.getString(R.string.other_priority),
-                PricePriority.defaultValue.name) ?: PricePriority.defaultValue.name)
-        BEST_PRICE_QUANTITY_TOLERANCE = settingsPrefs
-            .getFloat(context.getString(R.string.best_price_quantity_tolerance),
-                BEST_PRICE_QUANTITY_TOLERANCE)
-        REPLACE_ORDERS_ENABLED = settingsPrefs.getBoolean(context
-            .getString(R.string.replace_order_enabled), false)
-        REPLACE_ORDERS_UP = settingsPrefs.getBoolean(context
-            .getString(R.string.replace_order_up), false)
-        EVENING_TRADES = settingsPrefs.getBoolean(context
-            .getString(R.string.evening_trades), false)
-        RECENT_TRADES_QUANTITY_TOLERANCE = settingsPrefs
-            .getFloat(
-                context.getString(R.string.recent_trades_quantity_tolerance),
-                RECENT_TRADES_QUANTITY_TOLERANCE
-            )
+
+        auctionPriority = getPricePriorityFromPrefs(
+            settingsPrefs,
+            context.getString(R.string.auction_priority),
+            context.getString(R.string.auction_priority_data)
+        )
+
+        otherPriority = getPricePriorityFromPrefs(
+            settingsPrefs,
+            context.getString(R.string.other_priority),
+            context.getString(R.string.other_priority_data)
+        )
+
+        REPLACE_ORDERS_ENABLED = settingsPrefs.getBoolean(
+            context
+                .getString(R.string.replace_order_enabled), false
+        )
+        REPLACE_ORDERS_UP = settingsPrefs.getBoolean(
+            context
+                .getString(R.string.replace_order_up), false
+        )
+        EVENING_TRADES = settingsPrefs.getBoolean(
+            context
+                .getString(R.string.evening_trades), false
+        )
+
         MONEY_AFTER_SPENT = settingsPrefs
             .getString(
                 context.getString(R.string.money_after_spent),
@@ -363,8 +381,10 @@ class RobotReceiver : BroadcastReceiver() {
         // Запланировать Alarm, если нужно
         if (scheduleNext) {
             val bcIntent = Intent(context, RobotReceiver::class.java)
-            val pi = PendingIntent.getBroadcast(context,0, bcIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT)
+            val pi = PendingIntent.getBroadcast(
+                context, 0, bcIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+            )
             if (!exact) {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTime, pi)
             } else {
@@ -385,11 +405,26 @@ class RobotReceiver : BroadcastReceiver() {
         } else {
             intent.getParcelableExtra(RECEIVER)
         }
-        resultReceiver?.apply {
+        if (resultReceiver != null) {
             val bundle = Bundle()
             bundle.putSerializable(CONFIG, config)
             bundle.putSerializable(ORDER, order)
             resultReceiver.send(0, bundle)
+        } else {
+            updateWidget(context, config)
+        }
+
+    }
+
+    private fun updateWidget(context: Context, config: TradingConfig) {
+        val manager = AppWidgetManager.getInstance(context)
+        val component = ComponentName(context, RobotWidget::class.java)
+        val ids = manager.getAppWidgetIds(component)
+        if (ids.isNotEmpty()) {
+            val widgetIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+            widgetIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            widgetIntent.putExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, config)
+            context.sendBroadcast(widgetIntent)
         }
     }
 
@@ -630,7 +665,7 @@ class RobotReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Возвращает состояние торгового дня в текущий момент
+     * Возвращает состояние торгового дня в текущий момент и приоритета цены
      */
     private fun getTradingDayState(): TradingDayState {
         val now = Instant.now()
@@ -648,7 +683,7 @@ class RobotReceiver : BroadcastReceiver() {
 
         val nowUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
 
-        return when {
+        val dayState = when {
             nowUtc.before(hourBeforeStartTimeDay) -> TradingDayState.MORNING_BEFORE_TRADES
             nowUtc.before(startTimeAuctionDay) -> TradingDayState.ONE_HOUR_BEFORE_TRADES
             nowUtc.before(startTimeDay) -> TradingDayState.OPENING_AUCTION_DAY
@@ -660,6 +695,29 @@ class RobotReceiver : BroadcastReceiver() {
             nowUtc.after(endTimeEvening) -> TradingDayState.EVENING_AFTER_TRADES
             else -> TradingDayState.DAY_OFF
         }
+
+        currentPriority = when (dayState) {
+            TradingDayState.TRADING_DAY -> tradingDayPriority
+            TradingDayState.TRADING_EVENING -> tradingEveningPriority
+            TradingDayState.OPENING_AUCTION_DAY,
+            TradingDayState.OPENING_AUCTION_EVENING -> auctionPriority
+            TradingDayState.TRADING_DAY_START -> startDayPriority
+            else -> otherPriority
+        }
+        bestPriceQuantityTolerance =
+            if (currentPriority.pricePriority ==
+                PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY_TOLERANCE
+            )
+                currentPriority.tolerance
+            else PricePriorityWithData.getDefaultData(
+                PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY_TOLERANCE
+            )
+        recentTradesQuantityTolerance =
+            if (currentPriority.pricePriority == PricePriority.PRIORITY_RECENT_PRICE)
+                currentPriority.tolerance
+            else PricePriorityWithData.getDefaultData(PricePriority.PRIORITY_RECENT_PRICE)
+
+        return dayState
     }
 
     /**
@@ -757,7 +815,7 @@ class RobotReceiver : BroadcastReceiver() {
                 // Карта цена - объем (из которого исключены с малым объемом
                 // (<QUANTITY_TOLERANCE от максимума))
                 val priceMapWithTolerance = priceMap.filter {
-                    it.value >= maxQuantity * RECENT_TRADES_QUANTITY_TOLERANCE
+                    it.value >= maxQuantity * recentTradesQuantityTolerance
                 }
 
                 val prices = Pair(priceMapWithTolerance.minOfOrNull { it.key },
@@ -775,9 +833,9 @@ class RobotReceiver : BroadcastReceiver() {
             config.bidPriceWithMaxQuantity = orderBook.bidPriceWithMaxQuantity
             config.askPriceWithMaxQuantity = orderBook.askPriceWithMaxQuantity
             config.bidPriceWithQuantityTolerance =
-                orderBook.getBidPriceWithQuantityTolerance(BEST_PRICE_QUANTITY_TOLERANCE)
+                orderBook.getBidPriceWithQuantityTolerance(bestPriceQuantityTolerance)
             config.askPriceWithQuantityTolerance =
-                orderBook.getAskPriceWithQuantityTolerance(BEST_PRICE_QUANTITY_TOLERANCE)
+                orderBook.getAskPriceWithQuantityTolerance(bestPriceQuantityTolerance)
         }
 
         getRecentPrices()
@@ -786,17 +844,17 @@ class RobotReceiver : BroadcastReceiver() {
 
         var result = when (dayInfo) {
             TradingDayState.TRADING_DAY ->
-                getPairPrices(TRADING_DAY_PRIORITY)
+                getPairPrices(tradingDayPriority)
             TradingDayState.TRADING_EVENING ->
-                getPairPrices(TRADING_EVENING_PRIORITY)
+                getPairPrices(tradingEveningPriority)
             TradingDayState.OPENING_AUCTION_DAY, TradingDayState.OPENING_AUCTION_EVENING ->
-                getPairPrices(AUCTION_PRIORITY)
+                getPairPrices(auctionPriority)
             TradingDayState.TRADING_DAY_START ->
-                getPairPrices(START_DAY_PRIORITY)
+                getPairPrices(startDayPriority)
             else ->
-                getPairPrices(OTHER_PRIORITY)
+                getPairPrices(otherPriority)
         }
-        if (result == Pair(0f, 0f)) result = getPairPrices(PricePriority.PRIORITY_CLOSE_PRICE)
+        if (result == Pair(0f, 0f)) result = getPairPrices(PricePriorityWithData())
         return result
     }
 
@@ -808,8 +866,8 @@ class RobotReceiver : BroadcastReceiver() {
     /**
      * Возвращает пару цены покупка/продажа исходя из заданного приоритета
      */
-    private fun getPairPrices(priority: PricePriority): Pair<Float, Float> {
-        val pair = when (priority) {
+    private fun getPairPrices(priorityWithData: PricePriorityWithData): Pair<Float, Float> {
+        val pair = when (priorityWithData.pricePriority) {
             PricePriority.PRIORITY_RECENT_PRICE ->
                 Pair(config.minPriceRecent, config.maxPriceRecent)
             PricePriority.PRIORITY_PRICE_ORDER_BOOK ->

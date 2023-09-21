@@ -17,7 +17,7 @@ class PercentPreference(context: Context, attrs: AttributeSet?):
     private val settingsPrefs: SharedPreferences
     private val editor: SharedPreferences.Editor
     private var defaultValue: Float = 0f
-    private var value: Float = 0f
+    var value: Float = 0f
     init {
         onPreferenceClickListener = this
         settingsPrefs = PreferenceManager.getDefaultSharedPreferences(context)

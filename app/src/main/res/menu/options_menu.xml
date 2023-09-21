@@ -13,4 +13,7 @@
         android:icon="@drawable/ic_settings"
         android:title="Настройки"
         app:showAsAction="always" />
+    <item
+        android:id="@+id/about"
+        android:title="О программе" />
 </menu>

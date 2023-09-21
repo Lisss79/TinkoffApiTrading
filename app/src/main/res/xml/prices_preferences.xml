@@ -2,31 +2,77 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="Определение цены">
+    <PreferenceCategory app:title="Дневная торгоая сессия">
 
         <ListPreference
             android:key="@string/trading_day_priority"
-            android:title="Дневная торговая сессия"
+            android:title="Цена"
             app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            app:defaultValue="0.0"
+            app:key="@string/trading_day_priority_data"
+            app:title="Допуск"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Вечерняя торговая сессия">
 
         <ListPreference
             android:key="@string/trading_evening_priority"
-            android:title="Вечерняя торговая сессия"
+            android:title="Цена"
             app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            app:defaultValue="0.0"
+            app:key="@string/trading_evening_priority_data"
+            app:title="Допуск"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Начало торгового дня">
 
         <ListPreference
             android:key="@string/start_day_priority"
-            android:title="Начало торгового дня"
+            android:title="Цена"
             app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            app:defaultValue="0.0"
+            app:key="@string/start_day_priority_data"
+            app:title="Допуск"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Аукцион открытия">
 
         <ListPreference
             android:key="@string/auction_priority"
-            android:title="Аукцион открытия"
+            android:title="Цена"
             app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            app:defaultValue="0.0"
+            app:key="@string/auction_priority_data"
+            app:title="Допуск"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Прочие ситуации">
 
         <ListPreference
             android:key="@string/other_priority"
-            android:title="Прочие ситуации"
+            android:title="Цена"
+            app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.PercentPreference
+            app:defaultValue="0.0"
+            app:key="@string/other_priority_data"
+            app:title="Допуск"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
