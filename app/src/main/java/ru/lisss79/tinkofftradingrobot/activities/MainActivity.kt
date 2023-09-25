@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
                 if (order.accountId.isNotEmpty())
                     tvOrder.text = String.format("Выставлена новая заявка:\n%s", order.toString())
                 else tvOrder.text = "Новая заявка не выставлена"
-                updateWidget(config)
+                updateWidget(InfoForWidget.createFromConfig(config, order))
 
             }
         }
@@ -196,14 +196,14 @@ class MainActivity : AppCompatActivity() {
     /**
      * Обновляет содержимое виджета
      */
-    private fun updateWidget(config: TradingConfig) {
+    private fun updateWidget(info: InfoForWidget) {
         val manager = AppWidgetManager.getInstance(applicationContext)
         val component = ComponentName(applicationContext, RobotWidget::class.java)
         val ids = manager.getAppWidgetIds(component)
         if (ids.isNotEmpty()) {
             val widgetIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
             widgetIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-            widgetIntent.putExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, config)
+            widgetIntent.putExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, info)
             sendBroadcast(widgetIntent)
         }
     }

@@ -1,6 +1,10 @@
 package ru.lisss79.tinkofftradingrobot.activities
 
 import android.os.Bundle
+import android.view.View
+import android.widget.ScrollView
+import android.widget.TableLayout
+import android.widget.TableRow
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -11,36 +15,38 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatu
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OrderState
 import java.io.File
 import java.io.IOException
-import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
 
 class StatisticsActivity : AppCompatActivity() {
-    private var text: String = ""
+    private val SCROLL_DELAY_MS = 100L
     private lateinit var robotTrades: File                  // лог-файл с результатами выставления заявок
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_statistics)
 
-        val textViewStatistic = findViewById<TextView>(R.id.textViewStatistics)
+        val tableStatistics = findViewById<TableLayout>(R.id.tableLayoutStatistics)
+        val scrollViewStats = findViewById<ScrollView>(R.id.scrollViewStatistics)
         robotTrades = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
-        text = getDealsText(robotTrades)
-        textViewStatistic.text = text
+        showDealsTable(robotTrades, tableStatistics)
+        scrollViewStats
+            .postDelayed({ scrollViewStats.fullScroll(View.FOCUS_DOWN) }, SCROLL_DELAY_MS)
 
         val bottomNavigationView =
             findViewById<BottomNavigationView>(R.id.bottomNavigationViewStatistics)
         bottomNavigationView.setOnItemSelectedListener {
-            text = when (it.itemId) {
+            tableStatistics.removeAllViews()
+            when (it.itemId) {
                 R.id.listDeals -> {
-                    getDealsText(robotTrades)
+                    showDealsTable(robotTrades, tableStatistics)
                 }
                 R.id.listResults -> {
-                    getResultsText(robotTrades)
+                    showResultsTable(robotTrades, tableStatistics)
                 }
-                else -> ""
             }
-            textViewStatistic.text = text
+            scrollViewStats
+                .postDelayed({ scrollViewStats.fullScroll(View.FOCUS_DOWN) }, SCROLL_DELAY_MS)
             true
         }
 
@@ -61,18 +67,54 @@ class StatisticsActivity : AppCompatActivity() {
         }
     }
 
-    private fun getResultsText(file: File): String {
-        val builder = StringBuilder()
+    /**
+     * Вывод на экран таблицы с финансовым результатом
+     */
+    private fun showResultsTable(file: File, table: TableLayout) {
+        fun getRow(deal1: Deal, deal2: Deal): TableRow {
+            val tableRow = TableRow(this)
 
-        fun getLine(deal1: Deal, deal2: Deal): String {
             val date = Date.from(deal1.dateTime)
-            val format = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-            val displayDate = format.format(date)
+            TextView(this).apply {
+                text = String.format("%te.%tm.%ty", date, date, date)
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
+                    )
+                )
+            }
+
+
             val displayFinRes = String.format("%+.2f", deal1.result + deal2.result)
-            return "$displayDate: $displayFinRes, ${deal1.figi}"
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                text = displayFinRes
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
+                    )
+                )
+            }
+
+            TextView(this).apply {
+                text = deal1.figi
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 3f
+                    )
+                )
+            }
+
+            return tableRow
         }
 
         val deals = getDeals(file)
+
         if (deals.size > 1) {
             var index = 0
             while (index < deals.size - 1) {
@@ -81,36 +123,86 @@ class StatisticsActivity : AppCompatActivity() {
                 if ((deal1.figi == deal2.figi) && (deal1.quantity == deal2.quantity)
                     && (deal1.result * deal2.result < 0)
                 ) {
-                    builder.append(getLine(deal1, deal2)).append("\n")
+                    table.addView(getRow(deal1, deal2))
                     index++
                 }
                 index++
 
             }
-        } else builder.append("Нет данных")
-        return builder.toString()
-
+        }
     }
 
-    private fun getDealsText(file: File): String {
-        val builder = StringBuilder()
+    /**
+     * Вывод на экран таблицы сделок
+     */
+    private fun showDealsTable(file: File, table: TableLayout) {
+        val deals = getDeals(file).withIndex()
+        deals.forEach {
+            val tableRow = TableRow(this)
 
-        fun getLine(result: Deal): String {
-            val date = Date.from(result.dateTime)
-            val format = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
-            val displayDate = format.format(date)
-            return if (result.result > 0f) "Продажа +${result.result} (${result.price}) в $displayDate"
-            else "Покупка ${result.result} (${result.price}) в $displayDate"
-        }
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                text = it.index.inc().toString()
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 1f
+                    )
+                )
+            }
 
-        val deals = getDeals(file)
-        if (deals.isNotEmpty()) deals.withIndex().forEach {
-            builder.append(it.index.inc()).append(". ").append(getLine(it.value)).append("\n")
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                text = if (it.value.result > 0) "Продажа" else "Покупка"
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 4f
+                    )
+                )
+            }
+
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                text = String.format("%+d", it.value.result.roundToInt())
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 4f
+                    )
+                )
+            }
+
+            val dateTime = Date.from(it.value.dateTime)
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                text = String.format("%tR", dateTime)
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 3f
+                    )
+                )
+            }
+
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                text = String.format("%te.%tm.%ty", dateTime, dateTime, dateTime)
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        TableRow.LayoutParams.WRAP_CONTENT, 3f
+                    )
+                )
+            }
+
+            table.addView(tableRow)
         }
-        else builder.append("Нет данных")
-        return builder.toString()
     }
 
+    /**
+     * Получает список сделок из файла лога робота
+     */
     private fun getDeals(file: File) =
         try {
             val orderLines = file.readLines()
