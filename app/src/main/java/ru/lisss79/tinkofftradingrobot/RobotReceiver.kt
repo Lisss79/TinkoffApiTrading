@@ -411,19 +411,19 @@ class RobotReceiver : BroadcastReceiver() {
             bundle.putSerializable(ORDER, order)
             resultReceiver.send(0, bundle)
         } else {
-            updateWidget(context, config)
+            updateWidget(context, InfoForWidget.createFromConfig(config, order))
         }
 
     }
 
-    private fun updateWidget(context: Context, config: TradingConfig) {
+    private fun updateWidget(context: Context, info: InfoForWidget) {
         val manager = AppWidgetManager.getInstance(context)
         val component = ComponentName(context, RobotWidget::class.java)
         val ids = manager.getAppWidgetIds(component)
         if (ids.isNotEmpty()) {
             val widgetIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
             widgetIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-            widgetIntent.putExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, config)
+            widgetIntent.putExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, info)
             context.sendBroadcast(widgetIntent)
         }
     }
@@ -565,6 +565,7 @@ class RobotReceiver : BroadcastReceiver() {
                     println("Создаем заявку:\n$postOrder")
                     val postOrderResponse = api.postOrder(postOrder).get()
                     postOrderResponse?.apply {
+                        checkForLastOrder()
                         robotTrades.appendText(toJsonLog())
                         robotTrades.appendText("\n")
                         val editor = prefs.edit()
@@ -597,6 +598,7 @@ class RobotReceiver : BroadcastReceiver() {
                     println("Создаем заявку:\n$postOrder")
                     val postOrderResponse = api.postOrder(postOrder).get()
                     postOrderResponse?.apply {
+                        checkForLastOrder()
                         robotTrades.appendText(toJsonLog())
                         robotTrades.appendText("\n")
                         val editor = prefs.edit()
@@ -629,6 +631,7 @@ class RobotReceiver : BroadcastReceiver() {
     private fun checkForLastOrder() {
         var lastPurchasePrice = prefs.getFloat(LAST_PURCHASE_PRICE, 0f)
         val lastOrderId = prefs.getString(ORDER_ID, "") ?: ""
+        logFile.appendText("Проверяем статус заявки с id=$lastOrderId\n")
         if (lastOrderId.isNotEmpty()) {
             val lastOrder = api.getOrderState(config.accountId, lastOrderId).get()
             when (lastOrder?.executionReportStatus) {
@@ -638,6 +641,7 @@ class RobotReceiver : BroadcastReceiver() {
                     lastOrder.orderDate = Instant.now()
                     robotTrades.appendText(lastOrder.toJsonLog())
                     robotTrades.appendText("\n")
+                    logFile.appendText("Заявка с id=$lastOrderId была успешно отменена\n")
                     val editor = prefs.edit()
                     editor.putString(ORDER_ID, "")
                     editor.apply()
@@ -647,6 +651,7 @@ class RobotReceiver : BroadcastReceiver() {
                     lastOrder.orderDate = Instant.now()
                     robotTrades.appendText(lastOrder.toJsonLog())
                     robotTrades.appendText("\n")
+                    logFile.appendText("Заявка с id=$lastOrderId была успешно выполнена\n")
                     val editor = prefs.edit()
                     editor.putString(ORDER_ID, "")
 
@@ -658,7 +663,15 @@ class RobotReceiver : BroadcastReceiver() {
                     editor.apply()
                 }
 
-                else -> {}
+                // Заявка активна
+                ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW -> {
+                    logFile.appendText("Заявка с id=$lastOrderId активна\n")
+                }
+
+                // Прочие случаи
+                else -> {
+                    logFile.appendText("Статус заявки с id=$lastOrderId неизвестен\n")
+                }
             }
         }
         config.lastPurchasePrice = lastPurchasePrice

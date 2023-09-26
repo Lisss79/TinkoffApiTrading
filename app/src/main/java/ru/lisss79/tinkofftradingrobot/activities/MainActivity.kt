@@ -27,6 +27,7 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -231,7 +232,86 @@ class MainActivity : AppCompatActivity() {
                     .setPositiveButton("OK", null)
                 about.show()
             }
+            R.id.lastPriceError -> {
+                checkForLastPriceError()
+            }
+            R.id.orderError -> {
+                checkForOrderListErrors()
+            }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun checkForLastPriceError() {
+        val tradesLog = RobotTradesLog
+            .fromFile(File(getExternalFilesDir(null), getString(R.string.robotfile_name)))
+        val correct = tradesLog?.checkForLastPurchasePrice(prefs)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Внимание")
+
+        if (correct == null || correct.second) {
+            dialog.setMessage("Ошибок в установке последней цены не найдено")
+                .setPositiveButton("OK", null)
+                .setIcon(R.drawable.ic_info)
+                .show()
+        }
+        else {
+            dialog.setMessage("Найдена ошибка в установке последней цены. Исправить?")
+                .setNegativeButton("Отмена", null)
+                .setIcon(R.drawable.ic_error)
+                .setPositiveButton("OK") { _, _ ->
+                    tradesLog.correctLastPurchasePrice(prefs, correct)
+                    showResult(true)
+                }
+                .show()
+        }
+    }
+
+    private fun checkForOrderListErrors() {
+        val file = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
+        val tradesLog = RobotTradesLog
+            .fromFile(file)
+        val errors = tradesLog?.checkForCorrectOrdersList()
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Внимание")
+
+        if (errors == null || errors.isEmpty()) {
+            dialog.setMessage("Ошибок в списке заявок не найдено")
+                .setPositiveButton("OK", null)
+                .setIcon(R.drawable.ic_info)
+                .show()
+        }
+        else {
+            dialog.setMessage("Найдены ошибок в списке заявок: ${errors.size}шт.  Исправить?")
+                .setNegativeButton("Отмена", null)
+                .setIcon(R.drawable.ic_error)
+                .setPositiveButton("OK") { _, _ ->
+                    val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+                    val newOrders = tradesLog.correctOrderList(api, settingsPrefs, errors)
+                    val result = tradesLog
+                        .toFile(file, newOrders)
+                    showResult(result)
+                }
+                .show()
+        }
+    }
+
+    private fun showResult(result: Boolean) {
+        AlertDialog.Builder(this)
+            .setTitle("Результат")
+            .setPositiveButton("OK", null)
+            .apply {
+                if (result) {
+                    this.setMessage("Операция успешно выполнена")
+                        .setIcon(R.drawable.ic_info)
+                }
+                else {
+                    this.setMessage("Не удалось выполнить операцию")
+                        .setIcon(R.drawable.ic_error)
+                }
+            }.show()
+
     }
 }
