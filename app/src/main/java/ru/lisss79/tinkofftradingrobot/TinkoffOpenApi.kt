@@ -26,10 +26,11 @@ const val EMPTY_BODY = "{}"
 
 class TinkoffOpenApi(val token: String) {
 
-    fun getAccounts(): CompletableFuture<GetAccountsResponse?> {
+    fun getAccounts(): CompletableFuture<Pair<GetAccountsResponse?, Int>> {
 
-        val future: CompletableFuture<GetAccountsResponse?> = CompletableFuture.supplyAsync {
+        val future: CompletableFuture<Pair<GetAccountsResponse?, Int>> = CompletableFuture.supplyAsync {
             var accounts: GetAccountsResponse? = null
+            var responseCode = -1
             val client = OkHttpClient()
 
             val url = API_URL + "tinkoff.public.invest.api.contract.v1.UsersService/GetAccounts"
@@ -38,6 +39,7 @@ class TinkoffOpenApi(val token: String) {
 
             try {
                 client.newCall(request).execute().use { response ->
+                    responseCode = response.code
                     if (!response.isSuccessful) {
                         throw IOException("Запрос к серверу не был успешен (метод getAccounts):" +
                                 " ${response.code} ${response.body?.string()}")
@@ -47,7 +49,7 @@ class TinkoffOpenApi(val token: String) {
             } catch (e: IOException) {
                 println("$e")
             }
-            return@supplyAsync accounts
+            return@supplyAsync accounts to responseCode
         }
         return future
     }

@@ -1,6 +1,7 @@
 package ru.lisss79.tinkofftradingrobot.activities
 
 import android.os.Bundle
+import android.view.MenuItem
 import android.view.View
 import android.widget.ScrollView
 import android.widget.TableLayout
@@ -21,6 +22,16 @@ import kotlin.math.roundToInt
 class StatisticsActivity : AppCompatActivity() {
     private val SCROLL_DELAY_MS = 100L
     private lateinit var robotTrades: File                  // лог-файл с результатами выставления заявок
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val id = item.itemId
+
+        if (id == android.R.id.home) {
+            onBackPressed()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

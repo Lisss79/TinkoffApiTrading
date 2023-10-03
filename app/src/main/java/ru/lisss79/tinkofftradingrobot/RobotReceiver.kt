@@ -24,12 +24,6 @@ import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.floor
 
-// Токен для работы API
-var TOKEN = ""
-
-// Тикер рабочего инструмента
-var INSTRUMENT_TICKER = ""
-
 // Тип рабочего инструмента
 const val MY_INSTRUMENT_KIND = "INSTRUMENT_TYPE_ETF"
 
@@ -48,28 +42,6 @@ const val DAY_AUCTION_TIME_DEFAULT = "06:51:01"
 // Значение по умолчанию для времени начала вечернего аукциона
 const val EVENING_AUCTION_TIME_DEFAULT = "16:01:01"
 
-// Интервал времени с начала торгов, когда можно рассчитывать цену по сегодняшнему дню
-var RECENT_INTERVAL_MIN = 60
-
-// Основной интервал обращений к API
-var MAIN_DELAY_REQUESTS_MIN = 30
-
-// Сколько денег оставлять после покупки (руб.)
-var MONEY_AFTER_SPENT = 900
-
-// Разрешить ли заменять заявки при изменении цены
-var REPLACE_ORDERS_ENABLED = false
-
-// Разрешить ли заменять заявки при изменении цены только вверх по стакану
-// (в сторону скорейшей сделки)
-var REPLACE_ORDERS_UP = true
-
-// Торговать ли в вечернюю сессию
-var EVENING_TRADES = false
-
-// Цена продажи выше цены покупки?
-var SELLING_PRICE_HIGHER = SellingPriceHigher.defaultValue
-
 // Ключ для передачи данных из activity в broadcast receiver
 const val RECEIVER = "receiver"
 
@@ -85,6 +57,13 @@ class RobotReceiver : BroadcastReceiver() {
     private lateinit var api: TinkoffOpenApi
     private lateinit var context: Context
     private val config = TradingConfig()
+
+    // Основные настройки
+    // Токен для работы API
+    var token = ""
+
+    // Тикер рабочего инструмента
+    private var instrumentTicker = ""
 
     // Приоритет определения цены
     // Текущий приоритет
@@ -113,6 +92,29 @@ class RobotReceiver : BroadcastReceiver() {
     private var bestPriceQuantityTolerance = PricePriorityWithData
         .getDefaultData(PricePriority.PRIORITY_PRICE_ORDER_BOOK_WITH_QUANTITY_TOLERANCE)
 
+    // Настройки алгоритма
+    // Интервал времени с начала торгов, когда можно рассчитывать цену по сегодняшнему дню
+    private var recentIntervalMin = 60
+
+    // Основной интервал обращений к API
+    private var mainDelayRequestsMin = 30
+
+    // Сколько денег оставлять после покупки (руб.)
+    private var moneyAfterSpending = 900
+
+    // Разрешить ли заменять заявки при изменении цены
+    private var replaceOrdersEnabled = false
+
+    // Разрешить ли заменять заявки при изменении цены только вверх по стакану
+    // (в сторону скорейшей сделки)
+    private var replaceOrdersUp = true
+
+    // Торговать ли в вечернюю сессию
+    private var eveningTrades = false
+
+    // Цена продажи выше цены покупки?
+    private var sellingPriceHigher = SellingPriceHigher.defaultValue
+
     private var order = PostOrder()                         // заявка для выставления
     private lateinit var dayInfo: TradingDayState           // состояние торгов сейчас
     private lateinit var orderBook: GetOrderBookResponse    // стакан по инструменту
@@ -125,16 +127,15 @@ class RobotReceiver : BroadcastReceiver() {
 
     // Режим работы Мосбиржи
     private val hourBeforeStartTimeDay = getCalendarFromTime(6, 0, 1)
-
-    // private val startTimeAuctionDay = getCalendarFromTime(6, 51, 1)
     private var startTimeAuctionDay = getCalendarFromString(DAY_AUCTION_TIME_DEFAULT)
     private val startTimeDay = getCalendarFromTime(7, 0, 1)
     private val startTimeDayPlusInterval = (startTimeDay.clone() as Calendar).apply {
-        add(Calendar.MINUTE, RECENT_INTERVAL_MIN)
+        add(Calendar.MINUTE, recentIntervalMin)
     }
-    private val endTimeDay = getCalendarFromTime(15, 30, 1)
-
-    // private val startTimeAuctionEvening = getCalendarFromTime(16, 1, 1)
+    private val endTimeDay = getCalendarFromTime(15, 39, 58)
+    private val endingTimeDay = (endTimeDay.clone() as Calendar).apply {
+        add(Calendar.MINUTE, -mainDelayRequestsMin)
+    }
     private var startTimeAuctionEvening = getCalendarFromString(EVENING_AUCTION_TIME_DEFAULT)
     private val startTimeEvening = getCalendarFromTime(16, 5, 1)
     private val endTimeEvening = getCalendarFromTime(20, 50, 1)
@@ -151,7 +152,7 @@ class RobotReceiver : BroadcastReceiver() {
             alarmManager = context.getSystemService(Service.ALARM_SERVICE) as AlarmManager
             prefs = context.getSharedPreferences(context.packageName, MODE_PRIVATE)
             getSettingsFromPrefs()
-            api = TinkoffOpenApi(TOKEN)
+            api = TinkoffOpenApi(token)
             val bcIntent = Intent(context, RobotReceiver::class.java)
             scheduleNext = intent.getBooleanExtra(SCHEDULE_NEXT, true)
 
@@ -219,7 +220,7 @@ class RobotReceiver : BroadcastReceiver() {
             }
 
             // Если вечер и торги вечером запрещены
-            else if (dayInfo.isEvening && !EVENING_TRADES) {
+            else if (dayInfo.isEvening && !eveningTrades) {
                 logFile.appendText("Торги вечером запрещены в настройках\n")
                 println("Торги вечером запрещены в настройках")
                 getActiveOrders()
@@ -292,9 +293,9 @@ class RobotReceiver : BroadcastReceiver() {
         }
 
         settingsPrefs = PreferenceManager.getDefaultSharedPreferences(context)
-        TOKEN = settingsPrefs.getString(context.getString(R.string.TOKEN), "") ?: ""
-        INSTRUMENT_TICKER = settingsPrefs.getString(context.getString(R.string.TICKER), "") ?: ""
-        SELLING_PRICE_HIGHER = SellingPriceHigher.valueOf(
+        token = settingsPrefs.getString(context.getString(R.string.TOKEN), "") ?: ""
+        instrumentTicker = settingsPrefs.getString(context.getString(R.string.TICKER), "") ?: ""
+        sellingPriceHigher = SellingPriceHigher.valueOf(
             settingsPrefs.getString(
                 context.getString(R.string.selling_price_higher),
                 SellingPriceHigher.defaultValue.name
@@ -332,34 +333,34 @@ class RobotReceiver : BroadcastReceiver() {
             context.getString(R.string.other_priority_data)
         )
 
-        REPLACE_ORDERS_ENABLED = settingsPrefs.getBoolean(
+        replaceOrdersEnabled = settingsPrefs.getBoolean(
             context
                 .getString(R.string.replace_order_enabled), false
         )
-        REPLACE_ORDERS_UP = settingsPrefs.getBoolean(
+        replaceOrdersUp = settingsPrefs.getBoolean(
             context
                 .getString(R.string.replace_order_up), false
         )
-        EVENING_TRADES = settingsPrefs.getBoolean(
+        eveningTrades = settingsPrefs.getBoolean(
             context
                 .getString(R.string.evening_trades), false
         )
 
-        MONEY_AFTER_SPENT = settingsPrefs
+        moneyAfterSpending = settingsPrefs
             .getString(
                 context.getString(R.string.money_after_spent),
-                MONEY_AFTER_SPENT.toString()
-            )?.toInt() ?: MONEY_AFTER_SPENT
-        MAIN_DELAY_REQUESTS_MIN = settingsPrefs
+                moneyAfterSpending.toString()
+            )?.toInt() ?: moneyAfterSpending
+        mainDelayRequestsMin = settingsPrefs
             .getString(
                 context.getString(R.string.main_request_delay_min),
-                MAIN_DELAY_REQUESTS_MIN.toString()
-            )?.toInt() ?: MAIN_DELAY_REQUESTS_MIN
-        RECENT_INTERVAL_MIN = settingsPrefs
+                mainDelayRequestsMin.toString()
+            )?.toInt() ?: mainDelayRequestsMin
+        recentIntervalMin = settingsPrefs
             .getString(
                 context.getString(R.string.recent_interval_min),
-                RECENT_INTERVAL_MIN.toString()
-            )?.toInt() ?: RECENT_INTERVAL_MIN
+                recentIntervalMin.toString()
+            )?.toInt() ?: recentIntervalMin
         val textDay = settingsPrefs.getString(
             context.getString(R.string.day_auction_time),
             DAY_AUCTION_TIME_DEFAULT
@@ -474,13 +475,13 @@ class RobotReceiver : BroadcastReceiver() {
 
                     // Условие замены заявки на покупку
                     val condition = ((config.activeOrdersPrice < bidPrice)
-                            && REPLACE_ORDERS_UP)
+                            && replaceOrdersUp)
                             || ((config.activeOrdersPrice != bidPrice)
-                            && !REPLACE_ORDERS_UP)
+                            && !replaceOrdersUp)
                     if (condition) {
                         println("Надо заявку менять!")
                         logFile.appendText("Заявка будет заменена!\n")
-                        if (REPLACE_ORDERS_ENABLED) {
+                        if (replaceOrdersEnabled) {
                             val quantity = config.activeOrdersQuantity.toString()
                             val price = Price.parse(bidPrice)
                             val accountId = config.accountId
@@ -512,13 +513,13 @@ class RobotReceiver : BroadcastReceiver() {
 
                     // Условие замены заявки на продажу
                     val condition = ((config.activeOrdersPrice > askPrice)
-                            && REPLACE_ORDERS_UP)
+                            && replaceOrdersUp)
                             || ((config.activeOrdersPrice != askPrice)
-                            && !REPLACE_ORDERS_UP)
+                            && !replaceOrdersUp)
                     if (condition) {
                         println("Надо заявку менять!")
                         logFile.appendText("Заявка будет заменена!\n")
-                        if (REPLACE_ORDERS_ENABLED) {
+                        if (replaceOrdersEnabled) {
                             val quantity = config.activeOrdersQuantity.toString()
                             val price = Price.parse(askPrice)
                             val accountId = config.accountId
@@ -587,7 +588,7 @@ class RobotReceiver : BroadcastReceiver() {
                 if (bidPrice > 0) {
 
                     val quantity =
-                        floor((config.currencyQuantity - MONEY_AFTER_SPENT) / bidPrice).toString()
+                        floor((config.currencyQuantity - moneyAfterSpending) / bidPrice).toString()
                     val price = Price.parse(bidPrice)
                     val direction = Direction.ORDER_DIRECTION_BUY
                     val accountId = config.accountId
@@ -701,7 +702,8 @@ class RobotReceiver : BroadcastReceiver() {
             nowUtc.before(startTimeAuctionDay) -> TradingDayState.ONE_HOUR_BEFORE_TRADES
             nowUtc.before(startTimeDay) -> TradingDayState.OPENING_AUCTION_DAY
             nowUtc.before(startTimeDayPlusInterval) -> TradingDayState.TRADING_DAY_START
-            nowUtc.before(endTimeDay) -> TradingDayState.TRADING_DAY
+            nowUtc.before(endingTimeDay) -> TradingDayState.TRADING_DAY
+            nowUtc.before(endTimeDay) -> TradingDayState.TRADING_DAY_ENDING
             nowUtc.before(startTimeAuctionEvening) -> TradingDayState.PAUSE_BETWEEN_DAY_AND_EVENING
             nowUtc.before(startTimeEvening) -> TradingDayState.OPENING_AUCTION_EVENING
             nowUtc.before(endTimeEvening) -> TradingDayState.TRADING_EVENING
@@ -710,7 +712,8 @@ class RobotReceiver : BroadcastReceiver() {
         }
 
         currentPriority = when (dayState) {
-            TradingDayState.TRADING_DAY -> tradingDayPriority
+            TradingDayState.TRADING_DAY,
+            TradingDayState.TRADING_DAY_ENDING -> tradingDayPriority
             TradingDayState.TRADING_EVENING -> tradingEveningPriority
             TradingDayState.OPENING_AUCTION_DAY,
             TradingDayState.OPENING_AUCTION_EVENING -> auctionPriority
@@ -764,7 +767,8 @@ class RobotReceiver : BroadcastReceiver() {
                 ?: throw Exception("No account info")
             config.accountId = accountId
 
-            val instruments = api.findInstruments(INSTRUMENT_TICKER, MY_INSTRUMENT_KIND).get()
+            config.instrumentTicker = instrumentTicker
+            val instruments = api.findInstruments(instrumentTicker, MY_INSTRUMENT_KIND).get()
                 ?: throw Exception("Can't find the instrument")
             config.instrumentId = instruments.instruments[0].uid
             config.figi = instruments.instruments[0].figi
@@ -804,7 +808,7 @@ class RobotReceiver : BroadcastReceiver() {
 
         fun getRecentPrices() {
             val to = Instant.now()
-            val from = to.minusSeconds(60L * RECENT_INTERVAL_MIN)
+            val from = to.minusSeconds(60L * recentIntervalMin)
 
             val trades = api.getLastTrades(from, to, config.instrumentId).get() ?: return
 
@@ -856,7 +860,7 @@ class RobotReceiver : BroadcastReceiver() {
         config.closePrice = getClosePrice()
 
         var result = when (dayInfo) {
-            TradingDayState.TRADING_DAY ->
+            TradingDayState.TRADING_DAY, TradingDayState.TRADING_DAY_ENDING ->
                 getPairPrices(tradingDayPriority)
             TradingDayState.TRADING_EVENING ->
                 getPairPrices(tradingEveningPriority)
@@ -897,9 +901,9 @@ class RobotReceiver : BroadcastReceiver() {
         val oneStepHigherPrice = kotlin.math
             .round((config.lastPurchasePrice + config.minPriceIncrement) * 100) / 100
         val result = when {
-            SELLING_PRICE_HIGHER == SellingPriceHigher.EXACTLY_ONE_STEP &&
+            sellingPriceHigher == SellingPriceHigher.EXACTLY_ONE_STEP &&
                     config.lastPurchasePrice > 0f -> pair.first to oneStepHigherPrice
-            SELLING_PRICE_HIGHER == SellingPriceHigher.ONE_STEP_OR_MORE -> pair.first to
+            sellingPriceHigher == SellingPriceHigher.ONE_STEP_OR_MORE -> pair.first to
                     pair.second.coerceAtLeast(oneStepHigherPrice)
             else -> pair
         }
@@ -922,26 +926,27 @@ class RobotReceiver : BroadcastReceiver() {
         // Следующий раз через интервал MAIN_DELAY_REQUESTS_MIN
         fun nextTime(): Long {
             val nowUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-            return nowUtc.timeInMillis + MAIN_DELAY_REQUESTS_MIN * 60000L
+            return nowUtc.timeInMillis + mainDelayRequestsMin * 60000L
         }
 
         return when (day) {
-            TradingDayState.TRADING_DAY,
-            TradingDayState.TRADING_DAY_START -> nextTime() to false
-            TradingDayState.TRADING_EVENING -> {
-                if (EVENING_TRADES) nextTime() to false
-                else tomorrowHourBeforeTrades() to false
-            }
-            TradingDayState.PAUSE_BETWEEN_DAY_AND_EVENING -> {
-                if (EVENING_TRADES) {
-                    val newCalendar = startTimeAuctionEvening.clone() as Calendar
-                    newCalendar.timeInMillis to true
-                } else tomorrowHourBeforeTrades() to false
-            }
             TradingDayState.MORNING_BEFORE_TRADES -> tomorrowHourBeforeTrades() to false
             TradingDayState.ONE_HOUR_BEFORE_TRADES -> {
                 val newCalendar = startTimeAuctionDay.clone() as Calendar
                 newCalendar.timeInMillis to true
+            }
+            TradingDayState.TRADING_DAY,
+            TradingDayState.TRADING_DAY_START -> nextTime() to false
+            TradingDayState.TRADING_DAY_ENDING,
+            TradingDayState.PAUSE_BETWEEN_DAY_AND_EVENING -> {
+                if (eveningTrades) {
+                    val newCalendar = startTimeAuctionEvening.clone() as Calendar
+                    newCalendar.timeInMillis to true
+                } else tomorrowHourBeforeTrades() to false
+            }
+            TradingDayState.TRADING_EVENING -> {
+                if (eveningTrades) nextTime() to false
+                else tomorrowHourBeforeTrades() to false
             }
             TradingDayState.EVENING_AFTER_TRADES -> tomorrowHourBeforeTrades() to false
             TradingDayState.DAY_OFF -> tomorrowHourBeforeTrades() to false

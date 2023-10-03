@@ -28,6 +28,9 @@ enum class TradingDayState(val isTradingAvailable: Boolean, val isEvening: Boole
     // Дневная торговая сессия (прошло больше RECENT_INTERVAL_MIN)
     TRADING_DAY(true),
 
+    // Окончание дневной торговой сессии (меньше MAIN_DELAY_REQUESTS_MIN до конца)
+    TRADING_DAY_ENDING(true),
+
     // Интервал между дневной и вечерней сессией
     PAUSE_BETWEEN_DAY_AND_EVENING(false, true),
 

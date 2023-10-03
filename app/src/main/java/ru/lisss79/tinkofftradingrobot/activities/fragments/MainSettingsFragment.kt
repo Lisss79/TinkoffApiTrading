@@ -109,7 +109,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         accountPref?.setOnPreferenceChangeListener { _, newValue ->
             val text = String.format("Id выбранного счета: %s", newValue)
             Toast.makeText(context, text, Toast.LENGTH_LONG).show()
-            false
+            true
         }
 
         // Меню сохранения настроек

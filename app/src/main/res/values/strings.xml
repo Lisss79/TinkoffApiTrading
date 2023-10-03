@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Trading Robot</string>
+    <string name="title_activity_main">Торговый робот %s</string>
     <string name="title_activity_settings">Настройки</string>
     <string name="title_activity_log">Логи</string>
     <string name="title_activity_statistics">Статистика</string>

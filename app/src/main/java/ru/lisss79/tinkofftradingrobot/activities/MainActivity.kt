@@ -12,6 +12,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -28,8 +29,10 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
 import java.io.File
+import java.net.HttpURLConnection
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.system.exitProcess
 
 
 @SuppressLint("UnspecifiedImmutableFlag")
@@ -55,20 +58,59 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+        title = String.format(getString(R.string.title_activity_main), BuildConfig.VERSION_NAME)
 
         requestBatteryPermission()
         val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         prefs = getSharedPreferences(packageName, MODE_PRIVATE)
-        TOKEN = settingsPrefs.getString("token", "") ?: ""
-        api = TinkoffOpenApi(TOKEN)
+        val token = settingsPrefs.getString(getString(R.string.TOKEN), "") ?: ""
+        api = TinkoffOpenApi(token)
         intentSettings = Intent(this, SettingsActivity::class.java)
-        val accounts = api.getAccounts().get()
-        if (accounts != null) {
-            val length = accounts.accounts.size
-            val accountsIds = Array(length) { accounts.accounts[it].id }
-            val accountsNames = Array(length) { accounts.accounts[it].name }
-            intentSettings.putExtra(ACCOUNTS, accountsIds)
-            intentSettings.putExtra(ACCOUNTS_NAMES, accountsNames)
+
+        val inflater: LayoutInflater = layoutInflater
+        val groupView: View = inflater.inflate(R.layout.loading_dialog, null)
+        val loadingDialog = AlertDialog.Builder(this)
+            .setView(groupView).setCancelable(false).show()
+
+        // Асинхронно читаем данные об аккаунте
+        val mainHandler = Handler(mainLooper)
+        val future = api.getAccounts()
+        future.thenAcceptAsync { response ->
+            loadingDialog.dismiss()
+            val accounts = response.first
+            val responseCode = response.second
+
+            // Если данные получены, передать их в intent в настройки
+            if (accounts != null) {
+                val length = accounts.accounts.size
+                val accountsIds = Array(length) { accounts.accounts[it].id }
+                val accountsNames = Array(length) { accounts.accounts[it].name }
+                intentSettings.putExtra(ACCOUNTS, accountsIds)
+                intentSettings.putExtra(ACCOUNTS_NAMES, accountsNames)
+            }
+
+            // Иначе показать сообщение об ошибке
+            else {
+                val readingDialog = AlertDialog.Builder(this).apply {
+                    this.setTitle("Ошибка")
+                        .setIcon(R.drawable.ic_error)
+                        .setPositiveButton("OK", null)
+                        .setNegativeButton("Выход") { _, _ ->
+                            exitProcess(0)
+                        }
+                }
+                val message = when (responseCode) {
+                    HttpURLConnection.HTTP_UNAUTHORIZED ->
+                        "Невозможно соединиться с сервером. Проверьте токен."
+                    HttpURLConnection.HTTP_INTERNAL_ERROR ->
+                        "Внутренняя ошибка сервера."
+                    else ->
+                        "Невозможно подключиться к серверу. Отсутствует соединение."
+                }
+                mainHandler.post {
+                    readingDialog.setMessage(message).show()
+                }
+            }
         }
 
         receiver = setReceiver()
@@ -133,13 +175,14 @@ class MainActivity : AppCompatActivity() {
             SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(nextTime))
         val displayDate = String.format("%s в %tT", date, nextTime)
 
-        val alarmUp = (PendingIntent.getBroadcast(this, 0, intentRobot,
-            PendingIntent.FLAG_NO_CREATE) != null)
+        val alarmUp = (PendingIntent.getBroadcast(
+            this, 0, intentRobot,
+            PendingIntent.FLAG_NO_CREATE
+        ) != null)
         if (alarmUp) {
             if (nextTime > 0L) {
                 tvAlarmInfo.text = displayDate
-            }
-            else tvAlarmInfo.text = "ЗАПЛАНИРОВАН"
+            } else tvAlarmInfo.text = "ЗАПЛАНИРОВАН"
             tvAlarmInfo.setTextColor(Color.GREEN)
         } else {
             tvAlarmInfo.text = "НЕ ЗАПЛАНИРОВАН"
@@ -255,8 +298,7 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("OK", null)
                 .setIcon(R.drawable.ic_info)
                 .show()
-        }
-        else {
+        } else {
             dialog.setMessage("Найдена ошибка в установке последней цены. Исправить?")
                 .setNegativeButton("Отмена", null)
                 .setIcon(R.drawable.ic_error)
@@ -282,8 +324,7 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("OK", null)
                 .setIcon(R.drawable.ic_info)
                 .show()
-        }
-        else {
+        } else {
             dialog.setMessage("Найдены ошибок в списке заявок: ${errors.size}шт.  Исправить?")
                 .setNegativeButton("Отмена", null)
                 .setIcon(R.drawable.ic_error)
@@ -306,8 +347,7 @@ class MainActivity : AppCompatActivity() {
                 if (result) {
                     this.setMessage("Операция успешно выполнена")
                         .setIcon(R.drawable.ic_info)
-                }
-                else {
+                } else {
                     this.setMessage("Не удалось выполнить операцию")
                         .setIcon(R.drawable.ic_error)
                 }

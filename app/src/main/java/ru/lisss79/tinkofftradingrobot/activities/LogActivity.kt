@@ -25,6 +25,16 @@ class LogActivity : AppCompatActivity() {
     private lateinit var scrollViewLog: ScrollView
     private lateinit var textViewLog: TextView
 
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val id = item.itemId
+
+        if (id == android.R.id.home) {
+            onBackPressed()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_log)

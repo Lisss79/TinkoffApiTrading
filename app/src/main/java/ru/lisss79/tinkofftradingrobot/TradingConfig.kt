@@ -9,7 +9,8 @@ import java.io.Serializable
 data class TradingConfig(
     var accountId: String = "",                     // Id торгового счета пользователя
     var figi: String = "",                          // FIGI инструмента для торгов
-    var instrumentId: String = "",                  // Id инструмента для торгов
+    var instrumentTicker: String = "",              // Тикер инструмента для торгов
+    var instrumentId: String = "",                  // Uid инструмента для торгов
     var minPriceIncrement: Float = 0f,              // минимальный шаг цены
     var currencyQuantity: Float = 0f,               // количество денег на торговом счету
     var currencyIso: String = "rub",                // валюта торгового счета
@@ -38,7 +39,7 @@ data class TradingConfig(
 
     override fun toString(): String {
         val data1 = "Идентификатор счета: $accountId$CR" +
-                "Тикер бумаги: $INSTRUMENT_TICKER$CR" +
+                "Тикер бумаги: $instrumentTicker$CR" +
                 "Uid бумаги: $instrumentId$CR" +
                 "FIGI бумаги: $figi$CR" +
                 "Цена закрытия - $closePrice, шаг цены - $minPriceIncrement$CR" +
