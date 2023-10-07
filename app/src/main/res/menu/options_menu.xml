@@ -21,6 +21,9 @@
             <item
                 android:id="@+id/orderError"
                 android:title="Ошибки учета заявок" />
+            <item
+                android:id="@+id/isRunningError"
+                android:title="Ошибки состояния запуска" />
         </menu>
     </item>
     <item

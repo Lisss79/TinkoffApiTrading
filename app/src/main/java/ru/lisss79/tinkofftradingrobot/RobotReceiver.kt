@@ -48,6 +48,9 @@ const val RECEIVER = "receiver"
 // Ключ для сохранения в shared preferences времени следующего аларма
 const val PLAN_TIME = "plan_time"
 
+// Ключ для сохранения в shared preferences о том, запущен ли робот
+const val ROBOT_IS_RUNNING = "robot_is_running"
+
 /**
  * Класс - Broadcast Receiver, получающий сообщение от Alarm Manager'а
  */
@@ -169,6 +172,12 @@ class RobotReceiver : BroadcastReceiver() {
             )
             logFile.appendText("${Instant.now()} запускаем робота\n")
 
+            // Проверка спящего режима и оптимизации батареи
+            if (powerManager.isDeviceIdleMode)
+                logFile.appendText("Устройство находится в спящем режиме\n")
+            if (!powerManager.isIgnoringBatteryOptimizations(context.packageName))
+                logFile.appendText("Включена оптимизация расхода батареи!\n")
+
             // Определяем режим запуска. Для рабочего режима обнуляем планировщик.
             if (scheduleNext) {
                 val pi = PendingIntent.getBroadcast(
@@ -179,14 +188,27 @@ class RobotReceiver : BroadcastReceiver() {
                 logFile.appendText("Запуск в рабочем режиме\n")
             } else logFile.appendText("Запуск в режиме просмотра\n")
 
-            if (powerManager.isDeviceIdleMode)
-                logFile.appendText("Устройство находится в спящем режиме\n")
-            if (!powerManager.isIgnoringBatteryOptimizations(context.packageName))
-                logFile.appendText("Включена оптимизация расхода батареи!\n")
-
             dayInfo = getTradingDayState()
             logFile.appendText("Состояние торгового дня: $dayInfo\n")
             val (alarmTime, exact) = getMilliSecOfNextWork(dayInfo)
+
+            // Проверяем, запущена ли другая копия работа
+            val isRunning = prefs.getBoolean(ROBOT_IS_RUNNING, false)
+
+            // Завершаем работе, если запущена и перепланируем
+            if (isRunning) {
+                logFile.appendText("Другая копия работа уже запущена. Завершаем работу\n")
+                planNextAlarm(alarmTime, exact, context, intent)
+                return@execute
+            }
+
+            // Иначе устанавливаем флаг запуска и работаем дальше
+            else {
+                prefs.edit().apply {
+                    putBoolean(ROBOT_IS_RUNNING, true)
+                    apply()
+                }
+            }
 
 
             // Если произошла ошибка чтения данных о торговом дне, просто перепланировать робота
@@ -396,9 +418,10 @@ class RobotReceiver : BroadcastReceiver() {
                 "Новый ${if (exact) "ТОЧНЫЙ" else "неточный"} " +
                         "запуск робота запланирован на ${Date(alarmTime).toInstant()}.\n\n"
             )
-            val editor = prefs.edit()
-            editor.putLong(PLAN_TIME, alarmTime)
-            editor.apply()
+            prefs.edit().apply {
+                putLong(PLAN_TIME, alarmTime)
+                apply()
+            }
         } else logFile.appendText("\n")
 
         val resultReceiver = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -415,6 +438,11 @@ class RobotReceiver : BroadcastReceiver() {
             updateWidget(context, InfoForWidget.createFromConfig(config, order))
         }
 
+        // Сохраняем флаг, что робот завершил работу
+        prefs.edit().apply {
+            putBoolean(ROBOT_IS_RUNNING, false)
+            apply()
+        }
     }
 
     private fun updateWidget(context: Context, info: InfoForWidget) {
@@ -495,9 +523,10 @@ class RobotReceiver : BroadcastReceiver() {
                                 checkForLastOrder()
                                 robotTrades.appendText(toJsonLog())
                                 robotTrades.appendText("\n")
-                                val editor = prefs.edit()
-                                editor.putString(ORDER_ID, replaceOrderResponse.orderId)
-                                editor.apply()
+                                prefs.edit().apply {
+                                    putString(ORDER_ID, replaceOrderResponse.orderId)
+                                    apply()
+                                }
                                 postOrder = PostOrder(
                                     quantity, price, config.activeOrderDirection,
                                     accountId, OrderType.ORDER_TYPE_LIMIT, config.instrumentId
@@ -533,9 +562,10 @@ class RobotReceiver : BroadcastReceiver() {
                                 checkForLastOrder()
                                 robotTrades.appendText(toJsonLog())
                                 robotTrades.appendText("\n")
-                                val editor = prefs.edit()
-                                editor.putString(ORDER_ID, replaceOrderResponse.orderId)
-                                editor.apply()
+                                prefs.edit().apply {
+                                    putString(ORDER_ID, replaceOrderResponse.orderId)
+                                    apply()
+                                }
                                 postOrder = PostOrder(
                                     quantity, price, config.activeOrderDirection,
                                     accountId, OrderType.ORDER_TYPE_LIMIT, config.instrumentId
@@ -569,9 +599,10 @@ class RobotReceiver : BroadcastReceiver() {
                         checkForLastOrder()
                         robotTrades.appendText(toJsonLog())
                         robotTrades.appendText("\n")
-                        val editor = prefs.edit()
-                        editor.putString(ORDER_ID, orderId)
-                        editor.apply()
+                        prefs.edit().apply {
+                            putString(ORDER_ID, orderId)
+                            apply()
+                        }
                     }
                     postOrder
                 } else {
@@ -602,9 +633,10 @@ class RobotReceiver : BroadcastReceiver() {
                         checkForLastOrder()
                         robotTrades.appendText(toJsonLog())
                         robotTrades.appendText("\n")
-                        val editor = prefs.edit()
-                        editor.putString(ORDER_ID, orderId)
-                        editor.apply()
+                        prefs.edit().apply {
+                            putString(ORDER_ID, orderId)
+                            apply()
+                        }
                     }
 
                     postOrder
@@ -643,9 +675,10 @@ class RobotReceiver : BroadcastReceiver() {
                     robotTrades.appendText(lastOrder.toJsonLog())
                     robotTrades.appendText("\n")
                     logFile.appendText("Заявка с id=$lastOrderId была успешно отменена\n")
-                    val editor = prefs.edit()
-                    editor.putString(ORDER_ID, "")
-                    editor.apply()
+                    prefs.edit().apply {
+                        putString(ORDER_ID, "")
+                        apply()
+                    }
                 }
                 // Заявка успешно выполнена
                 ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL -> {
@@ -653,15 +686,17 @@ class RobotReceiver : BroadcastReceiver() {
                     robotTrades.appendText(lastOrder.toJsonLog())
                     robotTrades.appendText("\n")
                     logFile.appendText("Заявка с id=$lastOrderId была успешно выполнена\n")
-                    val editor = prefs.edit()
-                    editor.putString(ORDER_ID, "")
 
                     // Цена последней покупки (0 - если была продажа)
                     lastPurchasePrice = if (lastOrder.direction == Direction.ORDER_DIRECTION_BUY)
                         lastOrder.initialSecurityPrice.value
                     else 0f
-                    editor.putFloat(LAST_PURCHASE_PRICE, lastPurchasePrice)
-                    editor.apply()
+
+                    prefs.edit().apply {
+                        putString(ORDER_ID, "")
+                        putFloat(LAST_PURCHASE_PRICE, lastPurchasePrice)
+                        apply()
+                    }
                 }
 
                 // Заявка активна

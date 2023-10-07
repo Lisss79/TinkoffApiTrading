@@ -33,8 +33,6 @@ class RobotWidget : AppWidgetProvider() {
     // Цвета
     private val positiveColor = Color.GREEN
     private val negativeColor = Color.RED
-
-    //private val neutralColor = Color.parseColor("#A0000000")
     private val neutralColor = Color.WHITE
 
     override fun onReceive(context: Context?, intent: Intent?) {

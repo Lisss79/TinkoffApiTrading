@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import ru.lisss79.tinkofftradingrobot.Deal
 import ru.lisss79.tinkofftradingrobot.R
+import ru.lisss79.tinkofftradingrobot.RobotTradesLog
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.Direction
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OrderState
@@ -63,21 +64,6 @@ class StatisticsActivity : AppCompatActivity() {
 
     }
 
-    private fun getFinancialResult(orders: List<OrderState?>, order: OrderState?): Float {
-        val state = order?.executionReportStatus ?: return 0f
-        if (state != ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL) return 0f
-        val ordersWithId = orders.filter { it?.orderId == order.orderId }
-        if (ordersWithId.size != 2) return 0f
-        return if (ordersWithId[0]?.executionReportStatus
-            != ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW
-        ) 0f
-        else when (order.direction) {
-            Direction.ORDER_DIRECTION_BUY -> -order.initialOrderPrice.value
-            Direction.ORDER_DIRECTION_SELL -> order.initialOrderPrice.value
-            else -> 0f
-        }
-    }
-
     /**
      * Вывод на экран таблицы с финансовым результатом
      */
@@ -124,7 +110,8 @@ class StatisticsActivity : AppCompatActivity() {
             return tableRow
         }
 
-        val deals = getDeals(file)
+        val log = RobotTradesLog.fromFile(file)
+        val deals = log?.getDeals() ?: listOf()
 
         if (deals.size > 1) {
             var index = 0
@@ -147,7 +134,8 @@ class StatisticsActivity : AppCompatActivity() {
      * Вывод на экран таблицы сделок
      */
     private fun showDealsTable(file: File, table: TableLayout) {
-        val deals = getDeals(file).withIndex()
+        val log = RobotTradesLog.fromFile(file)
+        val deals = (log?.getDeals() ?: listOf()).withIndex()
         deals.forEach {
             val tableRow = TableRow(this)
 
@@ -210,30 +198,5 @@ class StatisticsActivity : AppCompatActivity() {
             table.addView(tableRow)
         }
     }
-
-    /**
-     * Получает список сделок из файла лога робота
-     */
-    private fun getDeals(file: File) =
-        try {
-            val orderLines = file.readLines()
-            val orders = orderLines.map { OrderState.parse(it) }
-            orders.map {
-                it?.run {
-                    val quantity = if (initialSecurityPrice.value != 0f)
-                        (initialOrderPrice.value / initialSecurityPrice.value).roundToInt()
-                    else 0
-                    Deal(
-                        figi,
-                        orderDate,
-                        getFinancialResult(orders, it),
-                        initialSecurityPrice.value,
-                        quantity
-                    )
-                } ?: Deal()
-            }.filter { it.result != 0f }
-        } catch (e: IOException) {
-            listOf()
-        }
 
 }

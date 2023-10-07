@@ -11,7 +11,7 @@ android {
         applicationId "ru.lisss79.tinkofftradingrobot"
         minSdk 27
         targetSdk 33
-        versionCode 31023
+        versionCode 231007
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

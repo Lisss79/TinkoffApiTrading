@@ -94,10 +94,8 @@ class RobotTradesLog(val orders: List<OrderState?>) {
     /**
      * Получает успешных список сделок
      */
-    private fun getDeals() =
+    fun getDeals() =
         try {
-            //val orderLines = file.readLines()
-            //val orders = orderLines.map { OrderState.parse(it) }
             orders.map {
                 it?.run {
                     val quantity = if (initialSecurityPrice.value != 0f)
@@ -156,8 +154,6 @@ class RobotTradesLog(val orders: List<OrderState?>) {
             val accountId = settingsPrefs.getString("account", "") ?: ""
             errors.forEach { entry ->
                 val state = api.getOrderState(accountId, entry.second).get()
-                //val currElement = newOrders.first { it?.orderId == entry.second }
-                //val currIndex = newOrders.indexOf(currElement)
                 val currIndex = newOrders.withIndex().first { it.value?.orderId == entry.second }.index
                 newOrders.add(currIndex + 1, state)
             }

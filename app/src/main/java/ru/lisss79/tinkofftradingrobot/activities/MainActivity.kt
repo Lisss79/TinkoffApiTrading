@@ -21,6 +21,9 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
+import androidx.work.Operation
+import androidx.work.PeriodicWorkRequest
+import androidx.work.WorkManager
 import ru.lisss79.tinkofftradingrobot.*
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS_NAMES
@@ -31,6 +34,7 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
 import java.io.File
 import java.net.HttpURLConnection
 import java.text.SimpleDateFormat
+import java.time.*
 import java.util.*
 import kotlin.system.exitProcess
 
@@ -48,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var intentSettings: Intent
     private lateinit var receiver: ResultReceiver
     private lateinit var prefs: SharedPreferences
+    private var workId = UUID.nameUUIDFromBytes(NIGHTLY_WORKER_ID.encodeToByteArray())
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.options_menu, menu)
@@ -98,6 +103,9 @@ class MainActivity : AppCompatActivity() {
                         .setNegativeButton("Выход") { _, _ ->
                             exitProcess(0)
                         }
+                        .setNeutralButton("Повтор") { _, _ ->
+                            recreate()
+                        }
                 }
                 val message = when (responseCode) {
                     HttpURLConnection.HTTP_UNAUTHORIZED ->
@@ -128,6 +136,7 @@ class MainActivity : AppCompatActivity() {
 
         // Обработка нажатия кнопки Start
         buttonConnect.setOnClickListener {
+            checkNightlyWorker(true)
             sendBroadcastToRobot(true)
         }
 
@@ -145,6 +154,10 @@ class MainActivity : AppCompatActivity() {
             pi?.let {
                 alarmManager.cancel(it)
                 it.cancel()
+            }
+            WorkManager.getInstance(this).apply {
+                cancelWorkById(workId)
+                pruneWork()
             }
             sendBroadcastToRobot(false)
         }
@@ -164,15 +177,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkForAlarmPlanning() {
         val nextTime = prefs.getLong(PLAN_TIME, 0L)
-        val calNextTime = Calendar.getInstance()
-        calNextTime.timeInMillis = nextTime
-        val today = Calendar.getInstance()
-        val date = if (calNextTime.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH))
-            "СЕГОДНЯ"
-        else if (calNextTime.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH) + 1)
-            "ЗАВТРА"
-        else
-            SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(nextTime))
+        val today = Instant.now().atZone(ZoneId.systemDefault()).toLocalDate()
+        val tomorrow = today.plusDays(1)
+        val nextTimeLocalDate =
+            Instant.ofEpochMilli(nextTime).atZone(ZoneId.systemDefault()).toLocalDate()
+
+        val date = if (today.equals(nextTimeLocalDate)) "СЕГОДНЯ"
+        else if (tomorrow.equals(nextTimeLocalDate)) "ЗАВТРА"
+        else SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(nextTime))
+
         val displayDate = String.format("%s в %tT", date, nextTime)
 
         val alarmUp = (PendingIntent.getBroadcast(
@@ -188,7 +201,6 @@ class MainActivity : AppCompatActivity() {
             tvAlarmInfo.text = "НЕ ЗАПЛАНИРОВАН"
             tvAlarmInfo.setTextColor(Color.RED)
         }
-        //updateWidget()
     }
 
     @SuppressLint("BatteryLife")
@@ -237,6 +249,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    private fun checkNightlyWorker(schedule: Boolean): Boolean {
+        val scheduledDate = LocalDate.now().plusDays(1)
+        val scheduledTime = LocalTime.parse(SCHEDULED_TIME)
+        val scheduled = scheduledTime.atDate(scheduledDate).atZone(ZoneId.systemDefault())
+        val delay = Duration.between(Instant.now(), scheduled)
+        val duration = Duration.ofHours(24)
+        return if (schedule) {
+            val request = PeriodicWorkRequest.Builder(NightlyWorker::class.java, duration)
+                .setInitialDelay(delay).setId(workId).build()
+            val operation = WorkManager.getInstance(this).enqueue(request)
+            true
+        }
+        else {
+            val workInfo = WorkManager.getInstance(this).getWorkInfoById(workId).get()
+            workInfo != null
+        }
+    }
+
     /**
      * Обновляет содержимое виджета
      */
@@ -281,8 +311,50 @@ class MainActivity : AppCompatActivity() {
             R.id.orderError -> {
                 checkForOrderListErrors()
             }
+            R.id.isRunningError -> {
+                checkForIsRunningErrors()
+            }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun checkForIsRunningErrors() {
+        val isRunning = prefs.getBoolean(ROBOT_IS_RUNNING, false)
+        val scheduled = checkNightlyWorker(false)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Внимание")
+
+        if (!isRunning && scheduled) {
+            dialog.setMessage("Ошибок в состоянии запуска робота не найдено. " +
+                    "Флаг isRunning не установлен, запуск очистителя флага запланирован")
+                .setPositiveButton("OK", null)
+                .setIcon(R.drawable.ic_info)
+                .show()
+        } else if (isRunning && scheduled) {
+            dialog.setMessage("Найдена ошибка в состоянии запуска робота. " +
+                    "Флаг isRunning установлен. Исправить?")
+                .setNegativeButton("Отмена", null)
+                .setIcon(R.drawable.ic_error)
+                .setPositiveButton("OK") { _, _ ->
+                    prefs.edit().apply {
+                        putBoolean(ROBOT_IS_RUNNING, false)
+                        apply()
+                    }
+                    showResult(true)
+                }
+                .show()
+        } else if (!isRunning && !scheduled) {
+            dialog.setMessage("Найдена ошибка в состоянии запуска робота. " +
+                    "Не запланирован запуск очистителя флага. Исправить?")
+                .setNegativeButton("Отмена", null)
+                .setIcon(R.drawable.ic_error)
+                .setPositiveButton("OK") { _, _ ->
+                    checkNightlyWorker(true)
+                    showResult(true)
+                }
+                .show()
+        }
     }
 
     private fun checkForLastPriceError() {
