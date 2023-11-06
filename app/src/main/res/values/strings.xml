@@ -31,6 +31,8 @@
     <string name="shared_prefs_dir">shared_prefs</string>
     <string name="start_day_priority">start_day_priority</string>
     <string name="start_day_priority_data">start_day_priority_data</string>
+    <string name="stop_purchase">stop_purchase</string>
+    <string name="stop_purchase_dates">stop_purchase_dates</string>
     <string name="time_preferences">time_preferences</string>
     <string name="trading_day_priority">trading_day_priority</string>
     <string name="trading_day_priority_data">trading_day_priority_data</string>

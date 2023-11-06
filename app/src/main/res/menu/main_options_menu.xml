@@ -19,6 +19,9 @@
                 android:id="@+id/lastPriceError"
                 android:title="Ошибки последней цены" />
             <item
+                android:id="@+id/lastPriceClear"
+                android:title="Удаление последней цены" />
+            <item
                 android:id="@+id/orderError"
                 android:title="Ошибки учета заявок" />
             <item

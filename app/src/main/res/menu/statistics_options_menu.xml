@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/daily"
+        android:title="По дням" />
+    <item
+        android:id="@+id/monthly"
+        android:title="По месяцам" />
+    <item
+        android:id="@+id/yearly"
+        android:title="По годам" />
+</menu>

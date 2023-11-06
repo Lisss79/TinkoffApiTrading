@@ -8,7 +8,7 @@ import java.io.File
 import java.time.Instant
 
 const val NIGHTLY_WORKER_ID = "nightly_worker_tag"
-const val SCHEDULED_TIME = "00:03:00"
+const val SCHEDULED_TIME = "03:00:00"
 
 /**
  * Класс Worker, который используется для запуска задач каждую ночь

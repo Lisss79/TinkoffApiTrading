@@ -1,9 +1,10 @@
 package ru.lisss79.tinkofftradingrobot
 
 import android.content.SharedPreferences
+import ru.lisss79.tinkofftradingrobot.data_classes.Deal
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.Direction
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus
-import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OrderState
 import java.io.File
 import java.io.IOException
@@ -71,7 +72,7 @@ class RobotTradesLog(val orders: List<OrderState?>) {
      * boolean - корректность сохраненного значения
      */
     fun checkForLastPurchasePrice(prefs: SharedPreferences): Pair<Float, Boolean> {
-        val lastPurchasePrice = prefs.getFloat(JsonKeys.LAST_PURCHASE_PRICE, 0f)
+        val lastPurchasePrice = prefs.getFloat(LAST_PURCHASE_PRICE, 0f)
         val lastDeal = getLastSuccessfulDeal()
         val lastDealDirection = lastDeal.direction
         val lastDealPrice = abs(lastDeal.price)
@@ -136,9 +137,10 @@ class RobotTradesLog(val orders: List<OrderState?>) {
      */
     fun correctLastPurchasePrice(prefs: SharedPreferences, correct: Pair<Float, Boolean>) {
         if (!correct.second) {
-            val editor = prefs.edit()
-            editor.putFloat(JsonKeys.LAST_PURCHASE_PRICE, correct.first)
-            editor.apply()
+            prefs.edit().apply() {
+                putFloat(LAST_PURCHASE_PRICE, correct.first)
+                apply()
+            }
         }
     }
 

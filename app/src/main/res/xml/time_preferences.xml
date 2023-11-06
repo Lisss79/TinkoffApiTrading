@@ -18,4 +18,22 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="Остановка работы">
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:summaryOff="Работать всегда"
+            android:summaryOn="Включена в интервале"
+            app:key="@string/stop_purchase"
+            app:title="Прекращение покупок"
+            app:useSimpleSummaryProvider="true" />
+
+        <ru.lisss79.tinkofftradingrobot.DatePickerPreference
+            android:defaultValue=""
+            app:key="@string/stop_purchase_dates"
+            app:title="Интервал"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>

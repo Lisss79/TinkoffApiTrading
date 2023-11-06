@@ -5,7 +5,9 @@ import android.text.InputFilter
 import android.text.InputType
 import android.view.Gravity
 import android.widget.Toast
+import androidx.preference.CheckBoxPreference
 import androidx.preference.EditTextPreference
+import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import ru.lisss79.tinkofftradingrobot.R
 import java.time.LocalTime
@@ -45,6 +47,23 @@ class TimeSettingsFragment : PreferenceFragmentCompat() {
             editText.filters = arrayOf(filter)
             editText.gravity = Gravity.CENTER_HORIZONTAL
         }
+
+        // Меню разрешения прекращения покупок и выбора интервала дат
+        val stopPurchase =
+            findPreference<CheckBoxPreference>(getString(R.string.stop_purchase))
+        val stopPurchaseDates =
+            findPreference<Preference>(getString(R.string.stop_purchase_dates))
+        stopPurchase?.setOnPreferenceChangeListener { _, newValue ->
+            stopPurchaseDates?.isEnabled = newValue as Boolean
+            true
+        }
+        stopPurchaseDates?.isEnabled = stopPurchase?.isChecked == true
+        stopPurchaseDates?.apply {
+            setOnPreferenceChangeListener { _, _ ->
+                true
+            }
+        }
+
     }
 
     private fun checkForCorrectTime(value: String) =

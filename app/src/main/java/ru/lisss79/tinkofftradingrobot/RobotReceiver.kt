@@ -10,6 +10,8 @@ import android.content.Context.MODE_PRIVATE
 import android.os.*
 import androidx.preference.PreferenceManager
 import ru.lisss79.tinkofftradingrobot.PricePriorityWithData.PricePriority
+import ru.lisss79.tinkofftradingrobot.data_classes.InfoForWidget
+import ru.lisss79.tinkofftradingrobot.data_classes.TradingConfig
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.*
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
@@ -18,6 +20,7 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -117,6 +120,16 @@ class RobotReceiver : BroadcastReceiver() {
 
     // Цена продажи выше цены покупки?
     private var sellingPriceHigher = SellingPriceHigher.defaultValue
+
+    // Запрещать ли покупки в выбранные даты
+    private var stopPurchase = false
+
+    // Даты начала и конца периода, когда запрещены покупки
+    private var startDate: LocalDate = LocalDate.of(1970, 1, 1)
+    private var endDate: LocalDate = startDate
+
+    // Запрещены ли покупки сейчас
+    private var stopPurchaseNow = false
 
     private var order = PostOrder()                         // заявка для выставления
     private lateinit var dayInfo: TradingDayState           // состояние торгов сейчас
@@ -277,7 +290,7 @@ class RobotReceiver : BroadcastReceiver() {
                 getActiveOrders()
                 if (scheduleNext) {
                     order = robotCycle(bidPrice, askPrice)
-                    logFile.appendText("Торговые данные:\n")
+                    logFile.appendText("\nТорговые данные:\n")
                     logFile.appendText(config.toString() + "\n\n")
                     if (order.instrumentId.isNotEmpty()) {
                         logFile.appendText("Создана заявка: $order \n")
@@ -302,6 +315,9 @@ class RobotReceiver : BroadcastReceiver() {
 
     }
 
+    /**
+     * Получить настройки из Shared Preferences
+     */
     private fun getSettingsFromPrefs() {
         fun getPricePriorityFromPrefs(
             prefs: SharedPreferences, key: String, keyData: String
@@ -393,6 +409,25 @@ class RobotReceiver : BroadcastReceiver() {
             EVENING_AUCTION_TIME_DEFAULT
         ) ?: EVENING_AUCTION_TIME_DEFAULT
         startTimeAuctionEvening = getCalendarFromString(textEvening)
+
+        stopPurchase = settingsPrefs.getBoolean(context.getString(R.string.stop_purchase), false)
+        if (stopPurchase) {
+            val key = context.getString(R.string.stop_purchase_dates)
+            val key1 = "${key}_1"
+            val key2 = "${key}_2"
+            try {
+                startDate = LocalDate.parse(settingsPrefs.getString(key1, ""))
+                endDate = LocalDate.parse(settingsPrefs.getString(key2, ""))
+                val now = LocalDate.now()
+                stopPurchaseNow = !(now.isBefore(startDate) || now.isAfter(endDate))
+            } catch (e: Exception) {
+                e.printStackTrace()
+                startDate = LocalDate.of(1970, 1, 1)
+                endDate = startDate
+                stopPurchaseNow = false
+
+            }
+        } else stopPurchaseNow = false
     }
 
     /**
@@ -618,28 +653,52 @@ class RobotReceiver : BroadcastReceiver() {
             config.positionQuantity == 0 -> {
                 if (bidPrice > 0) {
 
-                    val quantity =
-                        floor((config.currencyQuantity - moneyAfterSpending) / bidPrice).toString()
-                    val price = Price.parse(bidPrice)
-                    val direction = Direction.ORDER_DIRECTION_BUY
-                    val accountId = config.accountId
-                    val orderType = OrderType.ORDER_TYPE_LIMIT
-                    val instrumentId = config.instrumentId
-                    val postOrder =
-                        PostOrder(quantity, price, direction, accountId, orderType, instrumentId)
-                    println("Создаем заявку:\n$postOrder")
-                    val postOrderResponse = api.postOrder(postOrder).get()
-                    postOrderResponse?.apply {
-                        checkForLastOrder()
-                        robotTrades.appendText(toJsonLog())
-                        robotTrades.appendText("\n")
-                        prefs.edit().apply {
-                            putString(ORDER_ID, orderId)
-                            apply()
+                    // Если не запрещено выставлять заявки на покупку, то выставляем
+                    if (!stopPurchaseNow) {
+                        val quantityInt = floor(
+                            (config.currencyQuantity -
+                                    moneyAfterSpending) / bidPrice
+                        ).toInt()
+
+                        // Выставляем заявку только если хватает денег хотя бы на 1 лог
+                        if (quantityInt >= 1) {
+                            val quantity = quantityInt.toString()
+                            val price = Price.parse(bidPrice)
+                            val direction = Direction.ORDER_DIRECTION_BUY
+                            val accountId = config.accountId
+                            val orderType = OrderType.ORDER_TYPE_LIMIT
+                            val instrumentId = config.instrumentId
+                            val postOrder = PostOrder(
+                                quantity, price, direction,
+                                accountId, orderType, instrumentId
+                            )
+                            println("Создаем заявку:\n$postOrder")
+                            val postOrderResponse = api.postOrder(postOrder).get()
+                            postOrderResponse?.apply {
+                                checkForLastOrder()
+                                robotTrades.appendText(toJsonLog())
+                                robotTrades.appendText("\n")
+                                prefs.edit().apply {
+                                    putString(ORDER_ID, orderId)
+                                    apply()
+                                }
+                            }
+                            postOrder
+                        } else {
+                            logFile.appendText("Недостаточно денег для выставления заявки\n")
+                            PostOrder()
                         }
                     }
 
-                    postOrder
+                    // Если запрещено выставлять заявки на покупку, просто пишем об этом в лог
+                    else {
+                        logFile.appendText(
+                            "Выставление заявок" +
+                                    " на покупку сегодня запрещено в настройках!\n"
+                        )
+                        PostOrder()
+                    }
+
                 } else {
                     println("Невозможно создать заявку: не определена цена")
                     logFile.appendText("Невозможно создать заявку: не определена цена\n")
@@ -664,8 +723,8 @@ class RobotReceiver : BroadcastReceiver() {
     private fun checkForLastOrder() {
         var lastPurchasePrice = prefs.getFloat(LAST_PURCHASE_PRICE, 0f)
         val lastOrderId = prefs.getString(ORDER_ID, "") ?: ""
-        logFile.appendText("Проверяем статус заявки с id=$lastOrderId\n")
         if (lastOrderId.isNotEmpty()) {
+            logFile.appendText("Проверяем статус заявки с id=$lastOrderId\n")
             val lastOrder = api.getOrderState(config.accountId, lastOrderId).get()
             when (lastOrder?.executionReportStatus) {
                 // Заявка отменена или отклонена
@@ -709,6 +768,8 @@ class RobotReceiver : BroadcastReceiver() {
                     logFile.appendText("Статус заявки с id=$lastOrderId неизвестен\n")
                 }
             }
+        } else {
+            logFile.appendText("Статус заявок не проверяем\n")
         }
         config.lastPurchasePrice = lastPurchasePrice
     }
@@ -964,7 +1025,8 @@ class RobotReceiver : BroadcastReceiver() {
             return nowUtc.timeInMillis + mainDelayRequestsMin * 60000L
         }
 
-        return when (day) {
+        return if (stopPurchaseNow) tomorrowHourBeforeTrades() to false
+        else when (day) {
             TradingDayState.MORNING_BEFORE_TRADES -> tomorrowHourBeforeTrades() to false
             TradingDayState.ONE_HOUR_BEFORE_TRADES -> {
                 val newCalendar = startTimeAuctionDay.clone() as Calendar

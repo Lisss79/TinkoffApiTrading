@@ -12,22 +12,25 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
-import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
-import androidx.work.Operation
 import androidx.work.PeriodicWorkRequest
 import androidx.work.WorkManager
 import ru.lisss79.tinkofftradingrobot.*
+import ru.lisss79.tinkofftradingrobot.data_classes.InfoForWidget
+import ru.lisss79.tinkofftradingrobot.data_classes.TradingConfig
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS_NAMES
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
@@ -54,8 +57,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private var workId = UUID.nameUUIDFromBytes(NIGHTLY_WORKER_ID.encodeToByteArray())
 
+    private lateinit var activityLauncher: ActivityResultLauncher<Intent>
+    private var waitingDialog: AlertDialog? = null
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.options_menu, menu)
+        menuInflater.inflate(R.menu.main_options_menu, menu)
         return true
     }
 
@@ -72,10 +78,8 @@ class MainActivity : AppCompatActivity() {
         api = TinkoffOpenApi(token)
         intentSettings = Intent(this, SettingsActivity::class.java)
 
-        val inflater: LayoutInflater = layoutInflater
-        val groupView: View = inflater.inflate(R.layout.loading_dialog, null)
-        val loadingDialog = AlertDialog.Builder(this)
-            .setView(groupView).setCancelable(false).show()
+        val loadingDialog = createWaitingDialog()
+        loadingDialog.show()
 
         // Асинхронно читаем данные об аккаунте
         val mainHandler = Handler(mainLooper)
@@ -161,6 +165,13 @@ class MainActivity : AppCompatActivity() {
             }
             sendBroadcastToRobot(false)
         }
+
+        activityLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            waitingDialog?.dismiss()
+        }
+
     }
 
     /**
@@ -288,8 +299,10 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intentSettings)
             }
             R.id.statistics -> {
+                waitingDialog = createWaitingDialog()
+                waitingDialog?.show()
                 val intentStatistics = Intent(this, StatisticsActivity::class.java)
-                startActivity(intentStatistics)
+                activityLauncher.launch(intentStatistics)
             }
             R.id.log -> {
                 val intentLog = Intent(this, LogActivity::class.java)
@@ -308,6 +321,9 @@ class MainActivity : AppCompatActivity() {
             R.id.lastPriceError -> {
                 checkForLastPriceError()
             }
+            R.id.lastPriceClear -> {
+                clearLastPrice()
+            }
             R.id.orderError -> {
                 checkForOrderListErrors()
             }
@@ -318,6 +334,26 @@ class MainActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
+    /**
+     * Создание диалогового окна на время ожидания
+     */
+    @SuppressLint("InflateParams")
+    private fun createWaitingDialog(): AlertDialog {
+        val groupView: View = layoutInflater.inflate(R.layout.loading_dialog, null)
+        return AlertDialog.Builder(this)
+            .setView(groupView)
+            .setCancelable(false)
+            .create()
+    }
+
+    private fun clearLastPrice() {
+        prefs.edit().apply() {
+            putFloat(LAST_PURCHASE_PRICE, 0f)
+            apply()
+        }
+        showResult(true)
+    }
+
     private fun checkForIsRunningErrors() {
         val isRunning = prefs.getBoolean(ROBOT_IS_RUNNING, false)
         val scheduled = checkNightlyWorker(false)
@@ -326,8 +362,10 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Внимание")
 
         if (!isRunning && scheduled) {
-            dialog.setMessage("Ошибок в состоянии запуска робота не найдено. " +
-                    "Флаг isRunning не установлен, запуск очистителя флага запланирован")
+            dialog.setMessage(
+                "Ошибок в состоянии запуска робота не найдено. " +
+                        "Флаг isRunning не установлен, запуск очистителя флага запланирован"
+            )
                 .setPositiveButton("OK", null)
                 .setIcon(R.drawable.ic_info)
                 .show()

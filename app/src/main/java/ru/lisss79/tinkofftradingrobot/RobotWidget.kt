@@ -9,6 +9,9 @@ import android.content.Intent
 import android.graphics.*
 import android.os.*
 import android.widget.RemoteViews
+import ru.lisss79.tinkofftradingrobot.activities.MainActivity
+import ru.lisss79.tinkofftradingrobot.data_classes.InfoForWidget
+import ru.lisss79.tinkofftradingrobot.data_classes.TradingConfig
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.Direction
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
@@ -82,7 +85,7 @@ class RobotWidget : AppWidgetProvider() {
                 val nextTime = prefs.getLong(PLAN_TIME, 0L)
                 val calNextTime = Calendar.getInstance()
                 calNextTime.timeInMillis = nextTime
-                String.format(" в %tT", nextTime)
+                String.format("%tT", nextTime)
             }
             alarmText = if (displayDate != null) "Запуск в $displayDate" else "Запуск запланирован"
             alarmTextColor = positiveColor
@@ -102,6 +105,11 @@ class RobotWidget : AppWidgetProvider() {
 
                 if (!isUpdated) planUpdateAnimation()
                 setUpdateKeyListener(isUpdated, this)
+                val homePI = PendingIntent.getActivity(
+                    context, 0,
+                    Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                setOnClickPendingIntent(R.id.widgetMainLayout, homePI)
             }
 
 
@@ -170,7 +178,7 @@ class RobotWidget : AppWidgetProvider() {
                 appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, views)
                 println(updateValue)
                 planUpdateAnimation()
-            }, 40)
+            }, 20)
         } else {
             createBackground(null)
             appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, views)
@@ -237,7 +245,17 @@ class RobotWidget : AppWidgetProvider() {
         var tradesTextColor: Int
 
         views.apply {
-            //setInt(R.id.widgetMainLayout, "setBackgroundResource", R.drawable.background3)
+            tradesText = if (info.isError) {
+                tradesTextColor = negativeColor
+                "Нет данных"
+            } else if (info.tradesAvailable) {
+                tradesTextColor = positiveColor
+                "Торги идут"
+            } else {
+                tradesTextColor = neutralColor
+                "Торги НЕ ведутся"
+            }
+
             if (info.isError) {
                 orderText = "Ошибка получения"
                 orderTextColor = negativeColor
@@ -254,28 +272,17 @@ class RobotWidget : AppWidgetProvider() {
                         "Заявка: покупка"
                     }
                     else -> {
-                        orderTextColor = negativeColor
+                        orderTextColor = if (info.tradesAvailable) negativeColor
+                        else neutralColor
                         "Заявка НЕ выставлена"
                     }
                 }
-            }
-            tradesText = if (info.isError) {
-                tradesTextColor = negativeColor
-                "Нет данных"
-            } else if (info.tradesAvailable) {
-                tradesTextColor = positiveColor
-                "Торги идут"
-            } else {
-                tradesTextColor = neutralColor
-                "Торги НЕ ведутся"
             }
             setTextViewText(R.id.textViewOrder, orderText)
             setTextColor(R.id.textViewOrder, orderTextColor)
             setTextViewText(R.id.textViewTrades, tradesText)
             setTextColor(R.id.textViewTrades, tradesTextColor)
         }
-        //isUpdated = true
-        //updateValue = 0
         appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, views)
     }
 }
