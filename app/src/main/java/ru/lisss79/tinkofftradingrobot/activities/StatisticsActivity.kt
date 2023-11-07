@@ -17,6 +17,7 @@ import ru.lisss79.tinkofftradingrobot.R
 import ru.lisss79.tinkofftradingrobot.RobotTradesLog
 import ru.lisss79.tinkofftradingrobot.data_classes.Deal
 import ru.lisss79.tinkofftradingrobot.data_classes.FinancialResult
+import ru.lisss79.tinkofftradingrobot.data_classes.MonthlyYearlyFinancialResult
 import java.io.File
 import java.time.LocalDate
 import java.time.Period
@@ -56,7 +57,8 @@ class StatisticsActivity : AppCompatActivity() {
                 }
                 R.id.listResults -> {
                     showResultsTable(robotTrades, tableStatistics)
-                    menuInflater.inflate(R.menu.statistics_options_menu, optionsMenu)
+                    if (optionsMenu.size() == 0)
+                        menuInflater.inflate(R.menu.statistics_options_menu, optionsMenu)
                 }
             }
             scrollViewStats
@@ -106,6 +108,7 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 val displayText = date2.format(formatter)
                 text = displayText
+                tooltipText = "Дата продажи"
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -121,6 +124,7 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 val displayText = "${period.days}дн"
                 text = displayText
+                tooltipText = "Интервал между покупкой и продажей"
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -140,6 +144,7 @@ class StatisticsActivity : AppCompatActivity() {
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
                 text = displayFinRes
+                tooltipText = "Финансовый результат купли-продажи"
                 gravity = Gravity.END
                 tableRow.addView(
                     this, TableRow.LayoutParams(
@@ -151,6 +156,7 @@ class StatisticsActivity : AppCompatActivity() {
 
             TextView(this).apply {
                 text = result.figi
+                tooltipText = "FIGI инструмента"
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Small)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.START
@@ -181,13 +187,14 @@ class StatisticsActivity : AppCompatActivity() {
      * Вывод на экран таблицы с финансовым результатом по месяцам или годам
      */
     private fun showResultsTableMonthlyYearly(file: File, table: TableLayout, monthly: Boolean) {
-        fun getRow(yearMonth: YearMonth, result: Float): TableRow {
+        fun getRow(yearMonth: YearMonth, result: MonthlyYearlyFinancialResult): TableRow {
             val tableRow = TableRow(this)
 
             val formatter = if (monthly) DateTimeFormatter.ofPattern("MMM yyyy")
             else DateTimeFormatter.ofPattern("yyyy")
             TextView(this).apply {
                 text = yearMonth.format(formatter)
+                tooltipText = "Интервал времени"
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 tableRow.addView(
                     this, TableRow.LayoutParams(
@@ -198,7 +205,8 @@ class StatisticsActivity : AppCompatActivity() {
             }
 
             TextView(this).apply {
-                text = String.format("%,.2f", result)
+                text = String.format("%,.2f%s", result.financialResult, currencySymbol)
+                tooltipText = "Финансовый результат"
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 gravity = Gravity.CENTER_HORIZONTAL
                 tableRow.addView(
@@ -209,20 +217,50 @@ class StatisticsActivity : AppCompatActivity() {
                 )
             }
 
+            TextView(this).apply {
+                text = String.format("%d", result.successfullyDeals)
+                tooltipText = "Успешных сделок"
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                gravity = Gravity.CENTER_HORIZONTAL
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        0,
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
+                    )
+                )
+            }
+
+            TextView(this).apply {
+                text = String.format("%d", result.summaryDeals)
+                tooltipText = "Всего сделок"
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                gravity = Gravity.CENTER_HORIZONTAL
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        0,
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
+                    )
+                )
+            }
+
             return tableRow
         }
 
         val log = RobotTradesLog.fromFile(file)
         val deals = log?.getDeals() ?: listOf()
-        val monthlyResults = mutableMapOf<YearMonth, Float>()
+
+        // Создаем карту. Ключ - месяц и год (или только год, а месяц - январь)
+        // Значение - пара финансовый результат и число сделок в указанный месяц/год
+        val monthlyResults = mutableMapOf<YearMonth, MonthlyYearlyFinancialResult>()
 
         getResults(deals).forEach {
             val currYearMonth =
                 if (monthly) YearMonth.from(it.dateTime2.atZone(ZoneId.systemDefault()))
                 else YearMonth.from(it.dateTime2.atZone(ZoneId.systemDefault())).withMonth(1)
             val currResult = monthlyResults[currYearMonth]
-            if (currResult != null) monthlyResults[currYearMonth] = currResult + it.result
-            else monthlyResults[currYearMonth] = it.result
+            if (currResult != null) monthlyResults[currYearMonth] = currResult + it
+            else monthlyResults[currYearMonth] =
+                MonthlyYearlyFinancialResult.from(it)
         }
 
         monthlyResults.forEach { (yearMonth, result) ->
@@ -267,6 +305,7 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 text = it.index.inc().toString()
+                tooltipText = "Порядковый номер"
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
@@ -278,6 +317,7 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 text = if (it.value.result > 0) "Продажа" else "Покупка"
+                tooltipText = "Направление сделки"
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
@@ -289,6 +329,7 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 text = String.format("%+,d%s", it.value.result.roundToInt(), currencySymbol)
+                tooltipText = "Сумма сделки"
                 gravity = Gravity.END
                 tableRow.addView(
                     this, TableRow.LayoutParams(
@@ -303,6 +344,7 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 text = dateTime.format(formatter)
+                tooltipText = "Дата сделки"
                 gravity = Gravity.END
                 tableRow.addView(
                     this, TableRow.LayoutParams(

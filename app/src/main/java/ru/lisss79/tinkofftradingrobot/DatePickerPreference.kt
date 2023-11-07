@@ -50,14 +50,23 @@ class DatePickerPreference(context: Context, attrs: AttributeSet?) :
         val constraints = CalendarConstraints.Builder()
             .setStart(Calendar.getInstance().timeInMillis)
             .build()
-        val dateRangePicker = MaterialDatePicker.Builder.dateRangePicker()
+
+        val dateRangePickerBuilder = MaterialDatePicker.Builder.dateRangePicker()
             .setTitleText("Выберите даты:")
             .setCalendarConstraints(constraints)
             .setTheme(
                 com.google.android.material
                     .R.style.ThemeOverlay_MaterialComponents_MaterialCalendar
             )
-            .build()
+
+        if (!(valueStart.isEqual(defaultValue) && valueEnd.isEqual(defaultValue))) {
+            val selection = androidx.core.util.Pair(
+                valueStart.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli(),
+                valueEnd.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+            )
+            dateRangePickerBuilder.setSelection(selection)
+        }
+        val dateRangePicker = dateRangePickerBuilder.build()
 
         dateRangePicker.addOnPositiveButtonClickListener {
             valueStart = LocalDate.from(
