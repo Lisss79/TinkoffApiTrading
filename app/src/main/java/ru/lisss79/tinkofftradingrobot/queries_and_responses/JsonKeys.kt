@@ -21,6 +21,7 @@ object JsonKeys {
     const val END_TIME = "endTime"
     const val EXCHANGE = "exchange"
     const val EXCHANGES = "exchanges"
+    const val EXECUTED_ORDER_PRICE = "executedOrderPrice"
     const val EXECUTION_REPORT_STATUS = "executionReportStatus"
     const val FIGI = "figi"
     const val FROM = "from"

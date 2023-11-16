@@ -2,6 +2,7 @@ package ru.lisss79.tinkofftradingrobot.queries_and_responses
 
 import org.json.JSONObject
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.DIRECTION
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.EXECUTED_ORDER_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.EXECUTION_REPORT_STATUS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.FIGI
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INITIAL_ORDER_PRICE
@@ -10,20 +11,24 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_DATE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 import java.time.Instant
 
-class OrderState(val orderId: String = "",
-                 val figi: String = "",
-                 val executionReportStatus: ExecutionReportStatus =
-                     ExecutionReportStatus.EXECUTION_REPORT_STATUS_UNSPECIFIED,
-                 // Общая цена заявки
-                 val initialOrderPrice: Money = Money.ZERO,
-                 val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
-                 // Цена заявки одного лота
-                 val initialSecurityPrice: Money = Money.ZERO,
-                 var orderDate: Instant = Instant.now()) {
+class OrderState(
+    val orderId: String = "",
+    val figi: String = "",
+    val executionReportStatus: ExecutionReportStatus =
+        ExecutionReportStatus.EXECUTION_REPORT_STATUS_UNSPECIFIED,
+    // Общая цена заявки
+    val initialOrderPrice: Money = Money.ZERO,
+    val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
+    // Цена заявки одного лота
+    val initialSecurityPrice: Money = Money.ZERO,
+    // Цена выполненной части заявки
+    val executedOrderPrice: Money = Money.ZERO,
+    var orderDate: Instant = Instant.now()
+) {
 
-    companion object{
+    companion object {
         fun parse(response: String?): OrderState? {
-            if(response == null) return null
+            if (response == null) return null
             return try {
                 val json = JSONObject(response)
                 parse(json)
@@ -44,10 +49,14 @@ class OrderState(val orderId: String = "",
                 val direction = Direction.parse(responseJson.getString(DIRECTION))
                 val initialSecurityPrice =
                     Money.parse(responseJson.getString(INITIAL_SECURITY_PRICE))
+                val executedOrderPrice = if (responseJson.has(EXECUTED_ORDER_PRICE))
+                    Money.parse(responseJson.getString(EXECUTED_ORDER_PRICE)) else Money.ZERO
                 val orderDate =
                     Instant.parse(responseJson.getString(ORDER_DATE))
-                OrderState(orderId, figi, executionReportStatus,
-                    initialOrderPrice, direction, initialSecurityPrice, orderDate)
+                OrderState(
+                    orderId, figi, executionReportStatus, initialOrderPrice,
+                    direction, initialSecurityPrice, executedOrderPrice, orderDate
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 OrderState()
@@ -63,6 +72,7 @@ class OrderState(val orderId: String = "",
         jsonString.put(DIRECTION, direction.name)
         jsonString.put(INITIAL_ORDER_PRICE, initialOrderPrice.value)
         jsonString.put(INITIAL_SECURITY_PRICE, initialSecurityPrice.value)
+        jsonString.put(EXECUTED_ORDER_PRICE, executedOrderPrice.value)
         jsonString.put(ORDER_DATE, orderDate.toString())
         return jsonString.toString()
     }

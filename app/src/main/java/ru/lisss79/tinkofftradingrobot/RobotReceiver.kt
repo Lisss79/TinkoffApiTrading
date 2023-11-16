@@ -159,7 +159,6 @@ class RobotReceiver : BroadcastReceiver() {
     /**
      * Метод, вызываемый при приходе сообщения от Alarm Manager'а
      */
-    @Suppress("DEPRECATION")
     override fun onReceive(context: Context, intent: Intent) {
         val executorService = Executors.newCachedThreadPool()
         executorService.execute {
@@ -759,7 +758,8 @@ class RobotReceiver : BroadcastReceiver() {
                 }
 
                 // Заявка активна
-                ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW -> {
+                ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW,
+                ExecutionReportStatus.EXECUTION_REPORT_STATUS_PARTIALLYFILL -> {
                     logFile.appendText("Заявка с id=$lastOrderId активна\n")
                 }
 

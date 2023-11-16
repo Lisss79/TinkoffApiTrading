@@ -10,17 +10,20 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_DATE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 import java.time.Instant
 
-class PostOrderResponse(val orderId: String = "",
-                        val figi: String = "",
-                        val executionReportStatus: ExecutionReportStatus =
-                            ExecutionReportStatus.EXECUTION_REPORT_STATUS_UNSPECIFIED,
-                        val initialOrderPrice: Money = Money.ZERO,
-                        val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
-                        val initialSecurityPrice: Money = Money.ZERO) {
+class PostOrderResponse(
+    val orderId: String = "",
+    val figi: String = "",
+    val executionReportStatus: ExecutionReportStatus =
+        ExecutionReportStatus.EXECUTION_REPORT_STATUS_UNSPECIFIED,
+    val initialOrderPrice: Money = Money.ZERO,
+    val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
+    val initialSecurityPrice: Money = Money.ZERO,
+    val executedOrderPrice: Money = Money.ZERO
+) {
 
-    companion object{
+    companion object {
         fun parse(response: String?): PostOrderResponse? {
-            if(response == null) return null
+            if (response == null) return null
             return try {
                 val json = JSONObject(response)
                 parse(json)
@@ -37,9 +40,14 @@ class PostOrderResponse(val orderId: String = "",
                     ExecutionReportStatus.parse(responseJson.getString(EXECUTION_REPORT_STATUS))
                 val initialOrderPrice = Money.parse(responseJson.getString(INITIAL_ORDER_PRICE))
                 val direction = Direction.parse(responseJson.getString(DIRECTION))
-                val initialSecurityPrice = Money.parse(responseJson.getString(INITIAL_SECURITY_PRICE))
-                PostOrderResponse(orderId, figi, executionReportStatus,
-                    initialOrderPrice, direction, initialSecurityPrice)
+                val initialSecurityPrice =
+                    Money.parse(responseJson.getString(INITIAL_SECURITY_PRICE))
+                val executedOrderPrice =
+                    Money.parse(responseJson.getString(JsonKeys.EXECUTED_ORDER_PRICE))
+                PostOrderResponse(
+                    orderId, figi, executionReportStatus, initialOrderPrice,
+                    direction, initialSecurityPrice, executedOrderPrice
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 PostOrderResponse()
@@ -62,6 +70,7 @@ class PostOrderResponse(val orderId: String = "",
         jsonString.put(DIRECTION, direction.name)
         jsonString.put(INITIAL_ORDER_PRICE, initialOrderPrice.value)
         jsonString.put(INITIAL_SECURITY_PRICE, initialSecurityPrice.value)
+        jsonString.put(JsonKeys.EXECUTED_ORDER_PRICE, executedOrderPrice.value)
         jsonString.put(ORDER_DATE, Instant.now().toString())
         return jsonString.toString()
     }

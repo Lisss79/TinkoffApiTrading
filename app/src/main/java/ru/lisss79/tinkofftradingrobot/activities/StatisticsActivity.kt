@@ -18,13 +18,15 @@ import ru.lisss79.tinkofftradingrobot.RobotTradesLog
 import ru.lisss79.tinkofftradingrobot.data_classes.Deal
 import ru.lisss79.tinkofftradingrobot.data_classes.FinancialResult
 import ru.lisss79.tinkofftradingrobot.data_classes.MonthlyYearlyFinancialResult
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.Direction
 import java.io.File
 import java.time.LocalDate
 import java.time.Period
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.Currency
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class StatisticsActivity : AppCompatActivity() {
@@ -274,7 +276,42 @@ class StatisticsActivity : AppCompatActivity() {
      * @param deals список сделок
      */
     private fun getResults(deals: List<Deal>): List<FinancialResult> {
+        fun firstPurchaseIndex() =
+            try {
+                val entry = deals.first { it.direction == Direction.ORDER_DIRECTION_BUY }
+                deals.indexOf(entry)
+            } catch (e: NoSuchElementException) {
+                e.printStackTrace()
+                -1
+            }
+
+        fun dealsInOneDirection(index: Int): List<Deal> {
+            val results = mutableListOf<Deal>()
+            val direction = deals[index].direction
+            val figi = deals[index].figi
+            var tempIndex = index
+            while (tempIndex < deals.size && deals[tempIndex].direction == direction
+                && deals[tempIndex].figi == figi
+            ) {
+                results.add(deals[tempIndex])
+                tempIndex++
+            }
+            return results
+        }
+
         val results = mutableListOf<FinancialResult>()
+        var index = firstPurchaseIndex()
+        while (index < deals.size) {
+            val deals1 = dealsInOneDirection(index)
+            index += deals1.size
+            if (index < deals.size) {
+                val deals2 = dealsInOneDirection(index)
+                index += deals2.size
+                results.add(FinancialResult.fromDeals(deals1, deals2))
+            } else break
+        }
+
+        /*
         if (deals.size > 1) {
             var index = 0
             while (index < deals.size - 1) {
@@ -290,6 +327,10 @@ class StatisticsActivity : AppCompatActivity() {
 
             }
         }
+
+         */
+
+
         return results
     }
 
@@ -321,7 +362,7 @@ class StatisticsActivity : AppCompatActivity() {
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
-                        TableRow.LayoutParams.WRAP_CONTENT, 3f
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
                     )
                 )
             }
@@ -334,7 +375,7 @@ class StatisticsActivity : AppCompatActivity() {
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
-                        TableRow.LayoutParams.WRAP_CONTENT, 4f
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
                     )
                 )
             }
@@ -349,7 +390,7 @@ class StatisticsActivity : AppCompatActivity() {
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
-                        TableRow.LayoutParams.WRAP_CONTENT, 3f
+                        TableRow.LayoutParams.WRAP_CONTENT, 2f
                     )
                 )
             }

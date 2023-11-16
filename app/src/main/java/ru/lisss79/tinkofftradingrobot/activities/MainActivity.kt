@@ -12,10 +12,13 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
+import android.text.InputType
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
@@ -27,6 +30,7 @@ import androidx.work.WorkManager
 import ru.lisss79.tinkofftradingrobot.*
 import ru.lisss79.tinkofftradingrobot.data_classes.InfoForWidget
 import ru.lisss79.tinkofftradingrobot.data_classes.TradingConfig
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS_NAMES
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
@@ -114,8 +118,10 @@ class MainActivity : AppCompatActivity() {
                 val message = when (responseCode) {
                     HttpURLConnection.HTTP_UNAUTHORIZED ->
                         "Невозможно соединиться с сервером. Проверьте токен."
+
                     HttpURLConnection.HTTP_INTERNAL_ERROR ->
                         "Внутренняя ошибка сервера."
+
                     else ->
                         "Невозможно подключиться к серверу. Отсутствует соединение."
                 }
@@ -271,8 +277,7 @@ class MainActivity : AppCompatActivity() {
                 .setInitialDelay(delay).setId(workId).build()
             val operation = WorkManager.getInstance(this).enqueue(request)
             true
-        }
-        else {
+        } else {
             val workInfo = WorkManager.getInstance(this).getWorkInfoById(workId).get()
             workInfo != null
         }
@@ -298,16 +303,19 @@ class MainActivity : AppCompatActivity() {
             R.id.settings -> {
                 startActivity(intentSettings)
             }
+
             R.id.statistics -> {
                 waitingDialog = createWaitingDialog()
                 waitingDialog?.show()
                 val intentStatistics = Intent(this, StatisticsActivity::class.java)
                 activityLauncher.launch(intentStatistics)
             }
+
             R.id.log -> {
                 val intentLog = Intent(this, LogActivity::class.java)
                 startActivity(intentLog)
             }
+
             R.id.about -> {
                 val text = "Торговый робот Абрам ${BuildConfig.VERSION_NAME}\n" +
                         "Build ${BuildConfig.VERSION_CODE}\n(c)2023 Lisss79 Studio"
@@ -318,15 +326,23 @@ class MainActivity : AppCompatActivity() {
                     .setPositiveButton("OK", null)
                 about.show()
             }
+
             R.id.lastPriceError -> {
                 checkForLastPriceError()
             }
+
             R.id.lastPriceClear -> {
                 clearLastPrice()
             }
+
             R.id.orderError -> {
                 checkForOrderListErrors()
             }
+
+            R.id.robotLogUpdate -> {
+                updateOrder()
+            }
+
             R.id.isRunningError -> {
                 checkForIsRunningErrors()
             }
@@ -347,11 +363,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearLastPrice() {
-        prefs.edit().apply() {
-            putFloat(LAST_PURCHASE_PRICE, 0f)
-            apply()
-        }
-        showResult(true)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Внимание")
+        dialog.setMessage("Вы уверены?")
+            .setPositiveButton("OK") { _, _ ->
+                prefs.edit().apply {
+                    putFloat(LAST_PURCHASE_PRICE, 0f)
+                    apply()
+                }
+                showResult(true)
+            }
+            .setNegativeButton("Отмена", null)
+            .setIcon(R.drawable.ic_info)
+            .show()
     }
 
     private fun checkForIsRunningErrors() {
@@ -370,8 +394,10 @@ class MainActivity : AppCompatActivity() {
                 .setIcon(R.drawable.ic_info)
                 .show()
         } else if (isRunning && scheduled) {
-            dialog.setMessage("Найдена ошибка в состоянии запуска робота. " +
-                    "Флаг isRunning установлен. Исправить?")
+            dialog.setMessage(
+                "Найдена ошибка в состоянии запуска робота. " +
+                        "Флаг isRunning установлен. Исправить?"
+            )
                 .setNegativeButton("Отмена", null)
                 .setIcon(R.drawable.ic_error)
                 .setPositiveButton("OK") { _, _ ->
@@ -383,8 +409,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 .show()
         } else if (!isRunning && !scheduled) {
-            dialog.setMessage("Найдена ошибка в состоянии запуска робота. " +
-                    "Не запланирован запуск очистителя флага. Исправить?")
+            dialog.setMessage(
+                "Найдена ошибка в состоянии запуска робота. " +
+                        "Не запланирован запуск очистителя флага. Исправить?"
+            )
                 .setNegativeButton("Отмена", null)
                 .setIcon(R.drawable.ic_error)
                 .setPositiveButton("OK") { _, _ ->
@@ -422,14 +450,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkForOrderListErrors() {
         val file = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
-        val tradesLog = RobotTradesLog
-            .fromFile(file)
+        val tradesLog = RobotTradesLog.fromFile(file)
         val errors = tradesLog?.checkForCorrectOrdersList()
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("Внимание")
 
-        if (errors == null || errors.isEmpty()) {
+        if (errors.isNullOrEmpty()) {
             dialog.setMessage("Ошибок в списке заявок не найдено")
                 .setPositiveButton("OK", null)
                 .setIcon(R.drawable.ic_info)
@@ -441,8 +468,53 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("OK") { _, _ ->
                     val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
                     val newOrders = tradesLog.correctOrderList(api, settingsPrefs, errors)
-                    val result = tradesLog
-                        .toFile(file, newOrders)
+                    val result = RobotTradesLog.toFile(file, newOrders)
+                    showResult(result)
+                }
+                .show()
+        }
+    }
+
+    private fun updateOrder() {
+        val file = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
+        val tradesLog = RobotTradesLog.fromFile(file)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Внимание")
+        if (tradesLog?.orders.isNullOrEmpty()) {
+            dialog.setMessage("Записей о сделках не найдено.")
+                .setPositiveButton("OK", null)
+                .setIcon(R.drawable.ic_info)
+                .show()
+        } else {
+            val editText = EditText(this).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                hint = "Введите Id заявки"
+                inputType = InputType.TYPE_CLASS_NUMBER
+            }
+
+            dialog //.setMessage("Обновить запись о заявке?")
+                .setNegativeButton("Отмена", null)
+                .setIcon(R.drawable.ic_info)
+                .setView(editText)
+                .setPositiveButton("OK") { _, _ ->
+                    val orderId = editText.text.toString()
+                    val orders = tradesLog?.orders ?: listOf()
+                    val matchOrders = orders.filter { it?.orderId == orderId }
+                        .filter {
+                            it?.executionReportStatus ==
+                                    ExecutionReportStatus.EXECUTION_REPORT_STATUS_CANCELLED ||
+                                    it?.executionReportStatus ==
+                                    ExecutionReportStatus.EXECUTION_REPORT_STATUS_REJECTED ||
+                                    it?.executionReportStatus ==
+                                    ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL
+                        }
+                    var result = false
+                    if (matchOrders.isNotEmpty()) {
+                        val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+                        val newOrders =
+                            tradesLog?.updateOrderList(api, settingsPrefs, matchOrders) ?: listOf()
+                        result = RobotTradesLog.toFile(file, newOrders)
+                    }
                     showResult(result)
                 }
                 .show()
