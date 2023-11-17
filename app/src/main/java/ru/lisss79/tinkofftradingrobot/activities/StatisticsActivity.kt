@@ -156,6 +156,22 @@ class StatisticsActivity : AppCompatActivity() {
                 )
             }
 
+            val displayFinResPercent = String.format("%.2f%s", result.resultPercent, "%")
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                text = displayFinResPercent
+                tooltipText = "Финансовый результат в процентах"
+                gravity = Gravity.END
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        0,
+                        TableRow.LayoutParams.WRAP_CONTENT, 4f
+                    )
+                )
+            }
+
             TextView(this).apply {
                 text = result.figi
                 tooltipText = "FIGI инструмента"
@@ -165,7 +181,7 @@ class StatisticsActivity : AppCompatActivity() {
                 gravity = Gravity.END
                 val params = TableRow.LayoutParams(
                     0,
-                    TableRow.LayoutParams.WRAP_CONTENT, 5f
+                    TableRow.LayoutParams.WRAP_CONTENT, 3f
                 )
                 val px = TypedValue
                     .applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, resources.displayMetrics)
@@ -201,7 +217,7 @@ class StatisticsActivity : AppCompatActivity() {
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
-                        TableRow.LayoutParams.WRAP_CONTENT, 3f
+                        TableRow.LayoutParams.WRAP_CONTENT, 5f
                     )
                 )
             }
@@ -209,6 +225,19 @@ class StatisticsActivity : AppCompatActivity() {
             TextView(this).apply {
                 text = String.format("%,.2f%s", result.financialResult, currencySymbol)
                 tooltipText = "Финансовый результат"
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                gravity = Gravity.CENTER_HORIZONTAL
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        0,
+                        TableRow.LayoutParams.WRAP_CONTENT, 5f
+                    )
+                )
+            }
+
+            TextView(this).apply {
+                text = String.format("%,.2f%s", result.financialResultPercent, "%")
+                tooltipText = "Финансовый результат в процентах"
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
                 gravity = Gravity.CENTER_HORIZONTAL
                 tableRow.addView(
@@ -310,26 +339,6 @@ class StatisticsActivity : AppCompatActivity() {
                 results.add(FinancialResult.fromDeals(deals1, deals2))
             } else break
         }
-
-        /*
-        if (deals.size > 1) {
-            var index = 0
-            while (index < deals.size - 1) {
-                val deal1 = deals[index]
-                val deal2 = deals[index + 1]
-                if ((deal1.figi == deal2.figi) && (deal1.quantity == deal2.quantity)
-                    && (deal1.result * deal2.result < 0)
-                ) {
-                    results.add(FinancialResult.fromDeals(deal1, deal2))
-                    index++
-                }
-                index++
-
-            }
-        }
-
-         */
-
 
         return results
     }

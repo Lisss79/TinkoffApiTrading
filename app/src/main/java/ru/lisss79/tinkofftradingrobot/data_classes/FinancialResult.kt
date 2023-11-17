@@ -1,6 +1,7 @@
 package ru.lisss79.tinkofftradingrobot.data_classes
 
 import java.time.Instant
+import kotlin.math.abs
 
 /**
  * Финансовый результат покупки-продажи
@@ -9,7 +10,8 @@ data class FinancialResult(
     val figi: String = "",
     val dateTime1: Instant = Instant.now(),
     val dateTime2: Instant = Instant.now(),
-    val result: Float = 0f
+    val result: Float = 0f,
+    val resultPercent: Float = 0f
 ) {
 
     companion object {
@@ -18,7 +20,9 @@ data class FinancialResult(
                 deal1.figi,
                 deal1.dateTime,
                 deal2.dateTime,
-                deal1.result + deal2.result
+                deal1.result + deal2.result,
+                if (deal1.result != 0f) 100 * (deal2.result + deal1.result) / abs(deal1.result)
+                else 0f
             )
 
         fun fromDeals(deals1: List<Deal>, deals2: List<Deal>): FinancialResult {
@@ -28,7 +32,9 @@ data class FinancialResult(
                 deals1.first().figi,
                 deals1.first().dateTime,
                 deals2.last().dateTime,
-                (result1 + result2).toFloat()
+                (result1 + result2).toFloat(),
+                if (result1 != 0.0) (100 * (result2 + result1) / abs(result1)).toFloat()
+                else 0f
             )
         }
     }

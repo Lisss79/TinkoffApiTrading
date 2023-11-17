@@ -5,6 +5,7 @@ package ru.lisss79.tinkofftradingrobot.data_classes
  */
 data class MonthlyYearlyFinancialResult(
     val financialResult: Float,
+    val financialResultPercent: Float,
     val summaryDeals: Int,
     val successfullyDeals: Int
 ) {
@@ -13,6 +14,7 @@ data class MonthlyYearlyFinancialResult(
         fun from(result: FinancialResult) =
             MonthlyYearlyFinancialResult(
                 result.result,
+                result.resultPercent,
                 1,
                 convertToCounter(result.result)
             )
@@ -23,6 +25,7 @@ data class MonthlyYearlyFinancialResult(
     operator fun plus(otherResult: MonthlyYearlyFinancialResult) =
         MonthlyYearlyFinancialResult(
             financialResult + otherResult.financialResult,
+            financialResultPercent + otherResult.financialResultPercent,
             summaryDeals + otherResult.summaryDeals,
             successfullyDeals + otherResult.successfullyDeals
         )
@@ -30,6 +33,7 @@ data class MonthlyYearlyFinancialResult(
     operator fun plus(dailyResult: FinancialResult) =
         MonthlyYearlyFinancialResult(
             financialResult + dailyResult.result,
+            financialResultPercent + dailyResult.resultPercent,
             summaryDeals + 1,
             successfullyDeals + convertToCounter(dailyResult.result)
         )
