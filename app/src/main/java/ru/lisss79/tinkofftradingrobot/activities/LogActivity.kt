@@ -234,8 +234,9 @@ class LogActivity : AppCompatActivity() {
             val entries = log?.orders ?: listOf()
 
             val text = entries.filter {
-                if (it != null) {
-                    val currDate = LocalDate.from(it.orderDate.atZone(ZoneId.systemDefault()))
+                if (it?.orderState != null) {
+                    val currDate = LocalDate
+                        .from(it.orderState.orderDate.atZone(ZoneId.systemDefault()))
                     (currDate.isAfter(startDate) || currDate.isEqual(startDate))
                             && (currDate.isBefore(endDate) || currDate.isEqual(endDate))
                 } else false

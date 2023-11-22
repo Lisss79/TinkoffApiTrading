@@ -366,7 +366,8 @@ class StatisticsActivity : AppCompatActivity() {
 
             TextView(this).apply {
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
-                text = if (it.value.result > 0) "Продажа" else "Покупка"
+                text = if (it.value.direction == Direction.ORDER_DIRECTION_SELL) "Продажа"
+                else "Покупка"
                 tooltipText = "Направление сделки"
                 tableRow.addView(
                     this, TableRow.LayoutParams(

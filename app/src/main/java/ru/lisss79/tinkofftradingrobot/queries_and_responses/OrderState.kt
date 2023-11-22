@@ -23,7 +23,7 @@ class OrderState(
     val initialSecurityPrice: Money = Money.ZERO,
     // Цена выполненной части заявки
     val executedOrderPrice: Money = Money.ZERO,
-    var orderDate: Instant = Instant.now()
+    var orderDate: Instant = Instant.now(),
 ) {
 
     companion object {

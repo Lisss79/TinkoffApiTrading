@@ -12,13 +12,10 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
-import android.text.InputType
-import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
@@ -30,13 +27,13 @@ import androidx.work.WorkManager
 import ru.lisss79.tinkofftradingrobot.*
 import ru.lisss79.tinkofftradingrobot.data_classes.InfoForWidget
 import ru.lisss79.tinkofftradingrobot.data_classes.TradingConfig
-import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNTS_NAMES
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse.Operation.OperationType
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
 import java.io.File
 import java.net.HttpURLConnection
@@ -58,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pbLoading: ProgressBar
     private lateinit var intentSettings: Intent
     private lateinit var receiver: ResultReceiver
+    private lateinit var settingsPrefs: SharedPreferences
     private lateinit var prefs: SharedPreferences
     private var workId = UUID.nameUUIDFromBytes(NIGHTLY_WORKER_ID.encodeToByteArray())
 
@@ -76,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         title = String.format(getString(R.string.title_activity_main), BuildConfig.VERSION_NAME)
 
         requestBatteryPermission()
-        val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         prefs = getSharedPreferences(packageName, MODE_PRIVATE)
         val token = settingsPrefs.getString(getString(R.string.TOKEN), "") ?: ""
         api = TinkoffOpenApi(token)
@@ -339,8 +337,8 @@ class MainActivity : AppCompatActivity() {
                 checkForOrderListErrors()
             }
 
-            R.id.robotLogUpdate -> {
-                updateOrder()
+            R.id.robotLogFullUpdate -> {
+                showResult(updateAllOrders())
             }
 
             R.id.isRunningError -> {
@@ -387,8 +385,8 @@ class MainActivity : AppCompatActivity() {
 
         if (!isRunning && scheduled) {
             dialog.setMessage(
-                "Ошибок в состоянии запуска робота не найдено. " +
-                        "Флаг isRunning не установлен, запуск очистителя флага запланирован"
+                "Ошибок в состоянии запуска робота не найдено. Флаг isRunning не установлен," +
+                        " запуск очистки флага и обновления лога робота запланирован"
             )
                 .setPositiveButton("OK", null)
                 .setIcon(R.drawable.ic_info)
@@ -411,7 +409,7 @@ class MainActivity : AppCompatActivity() {
         } else if (!isRunning && !scheduled) {
             dialog.setMessage(
                 "Найдена ошибка в состоянии запуска робота. " +
-                        "Не запланирован запуск очистителя флага. Исправить?"
+                        "Не запланирован запуск очистки флага и обновления лога робота. Исправить?"
             )
                 .setNegativeButton("Отмена", null)
                 .setIcon(R.drawable.ic_error)
@@ -475,50 +473,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateOrder() {
+    private fun updateAllOrders(): Boolean {
         val file = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
-        val tradesLog = RobotTradesLog.fromFile(file)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Внимание")
-        if (tradesLog?.orders.isNullOrEmpty()) {
-            dialog.setMessage("Записей о сделках не найдено.")
-                .setPositiveButton("OK", null)
-                .setIcon(R.drawable.ic_info)
-                .show()
-        } else {
-            val editText = EditText(this).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                hint = "Введите Id заявки"
-                inputType = InputType.TYPE_CLASS_NUMBER
-            }
-
-            dialog //.setMessage("Обновить запись о заявке?")
-                .setNegativeButton("Отмена", null)
-                .setIcon(R.drawable.ic_info)
-                .setView(editText)
-                .setPositiveButton("OK") { _, _ ->
-                    val orderId = editText.text.toString()
-                    val orders = tradesLog?.orders ?: listOf()
-                    val matchOrders = orders.filter { it?.orderId == orderId }
-                        .filter {
-                            it?.executionReportStatus ==
-                                    ExecutionReportStatus.EXECUTION_REPORT_STATUS_CANCELLED ||
-                                    it?.executionReportStatus ==
-                                    ExecutionReportStatus.EXECUTION_REPORT_STATUS_REJECTED ||
-                                    it?.executionReportStatus ==
-                                    ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL
-                        }
-                    var result = false
-                    if (matchOrders.isNotEmpty()) {
-                        val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
-                        val newOrders =
-                            tradesLog?.updateOrderList(api, settingsPrefs, matchOrders) ?: listOf()
-                        result = RobotTradesLog.toFile(file, newOrders)
-                    }
-                    showResult(result)
-                }
-                .show()
-        }
+        val accountId = settingsPrefs.getString(getString(R.string.ACCOUNT), "") ?: ""
+        val from = Instant.from(ROBOT_START_DATE.atStartOfDay(ZoneId.systemDefault()))
+        val to = Instant.now()
+        val ordersFromServer = api.getOperations(accountId, from, to).get() ?: return false
+        val operations = ordersFromServer.operations.filter {
+            it.operationType == OperationType.OPERATION_TYPE_BUY
+                    || it.operationType == OperationType.OPERATION_TYPE_SELL
+        }.reversed()
+        val robotTradesLogFromServer = RobotTradesLog.from(operations)
+        return RobotTradesLog.toFile(file, robotTradesLogFromServer.orders)
     }
 
     private fun showResult(result: Boolean) {

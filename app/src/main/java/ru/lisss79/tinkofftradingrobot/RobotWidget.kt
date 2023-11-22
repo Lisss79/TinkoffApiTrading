@@ -101,7 +101,7 @@ class RobotWidget : AppWidgetProvider() {
                 }
                 setTextViewText(R.id.textViewAlarm, alarmText)
                 setTextColor(R.id.textViewAlarm, alarmTextColor)
-                appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, this)
+                appWidgetManager.updateAppWidget(appWidgetIds, this)
 
                 if (!isUpdated) planUpdateAnimation()
                 setUpdateKeyListener(isUpdated, this)
@@ -175,13 +175,13 @@ class RobotWidget : AppWidgetProvider() {
                     isUpdated = true
                     setUpdateKeyListener(isUpdated, views)
                 }
-                appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, views)
+                appWidgetManager.updateAppWidget(appWidgetIds, views)
                 println(updateValue)
                 planUpdateAnimation()
             }, 20)
         } else {
             createBackground(null)
-            appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, views)
+            appWidgetManager.updateAppWidget(appWidgetIds, views)
         }
     }
 
@@ -283,6 +283,6 @@ class RobotWidget : AppWidgetProvider() {
             setTextViewText(R.id.textViewTrades, tradesText)
             setTextColor(R.id.textViewTrades, tradesTextColor)
         }
-        appWidgetManager.partiallyUpdateAppWidget(appWidgetIds, views)
+        appWidgetManager.updateAppWidget(appWidgetIds, views)
     }
 }

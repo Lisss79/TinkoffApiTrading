@@ -4,7 +4,15 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import ru.lisss79.tinkofftradingrobot.queries_and_responses.*
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.EtfResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.FindInstrumentsResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetAccountsResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetClosePricesResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetLastTradesResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetOrderBookResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetOrdersResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetPositionsResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetTradingStatusResponse
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ACCOUNT_ID
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.DEPTH
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.EXCHANGE
@@ -16,7 +24,14 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INSTRUMENT_
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INSTRUMENT_KIND
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.QUERY
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.STATE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.TO
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.OrderState
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrderResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.ReplaceOrder
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.TradingSchedulesResponse
 import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
@@ -399,6 +414,44 @@ class TinkoffOpenApi(val token: String) {
                 println("$e")
             }
             return@supplyAsync closePrice
+        }
+        return future
+    }
+
+    fun getOperations(
+        accountId: String, from: Instant, to: Instant,
+        state: OperationsResponse.Operation.State =
+            OperationsResponse.Operation.State.OPERATION_STATE_EXECUTED
+    ):
+            CompletableFuture<OperationsResponse?> {
+
+        val future: CompletableFuture<OperationsResponse?> = CompletableFuture.supplyAsync {
+            var operation: OperationsResponse? = null
+            val client = OkHttpClient()
+
+            val url =
+                API_URL + "tinkoff.public.invest.api.contract.v1.OperationsService/GetOperations"
+            val mapRequest = mapOf(
+                ACCOUNT_ID to accountId,
+                FROM to from.toString(), TO to to.toString(), STATE to state.name
+            )
+            val request = getRequestWithAuth(url, createBody(mapRequest))
+
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException(
+                            "Запрос к серверу не был успешен (метод getOperations):" +
+                                    " ${response.code} ${response.body?.string()}"
+                        )
+                    }
+                    operation = response.body?.string()
+                        ?.let { OperationsResponse.parse(it) }
+                }
+            } catch (e: IOException) {
+                println("$e")
+            }
+            return@supplyAsync operation
         }
         return future
     }
