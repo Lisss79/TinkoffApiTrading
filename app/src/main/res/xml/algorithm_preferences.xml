@@ -9,6 +9,17 @@
             android:title="Цена продажи выше покупки"
             app:useSimpleSummaryProvider="true" />
 
+        <ListPreference
+            android:key="@string/market_orders"
+            android:title="Покупка по рынку"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:defaultValue="2"
+            android:key="@string/increased_bid_ratio"
+            android:title="Коэффициент повышенного спроса"
+            app:useSimpleSummaryProvider="true" />
+
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="@string/replace_order_enabled"

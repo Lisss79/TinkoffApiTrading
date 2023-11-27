@@ -33,6 +33,7 @@ data class TradingConfig(
     var lastPurchasePrice: Float = 0f,              // цена лота последней покупки
     var selectedPurchasePrice: Float = 0f,          // выбранная цена на покупку
     var selectedSellingPrice: Float = 0f,           // выбранная на продажу
+    var increasedBid: Boolean = false,              // повышенный спрос
     var error: String = ""                          // текст ошибки, если она произошла
 ) : Serializable {
     val CR = System.lineSeparator()
@@ -53,6 +54,7 @@ data class TradingConfig(
                         "ask - $askPriceWithMaxQuantity$CR" +
                         "Лучшие цены с допуском объема: bid - $bidPriceWithQuantityTolerance, " +
                         "ask - $askPriceWithQuantityTolerance$CR" +
+                        "${if (increasedBid) "Имеется повышенный спрос" else "Спрос обычный"}$CR" +
                         "Выбранные цены: покупка - $selectedPurchasePrice, продажа - $selectedSellingPrice $CR$CR"
             } else if (tradesAvailable && selectedPurchasePrice == 0f && selectedSellingPrice == 0f) {
                 "Данные по текущим ценам недоступны, т.к. цены не получены$CR$CR"

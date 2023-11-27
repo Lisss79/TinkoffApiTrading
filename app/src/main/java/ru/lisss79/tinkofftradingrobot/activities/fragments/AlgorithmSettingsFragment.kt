@@ -3,7 +3,12 @@ package ru.lisss79.tinkofftradingrobot.activities.fragments
 import android.os.Bundle
 import android.text.InputType
 import android.text.TextUtils
-import androidx.preference.*
+import androidx.preference.CheckBoxPreference
+import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import ru.lisss79.tinkofftradingrobot.MarketOrders
 import ru.lisss79.tinkofftradingrobot.R
 import ru.lisss79.tinkofftradingrobot.SellingPriceHigher
 import ru.lisss79.tinkofftradingrobot.TRADING_CURRENCY
@@ -13,12 +18,27 @@ class AlgorithmSettingsFragment : PreferenceFragmentCompat() {
         setPreferencesFromResource(R.xml.algorithm_preferences, rootKey)
 
         // Меню выбора цены продажи, более высокой, чем цена покупки
-        val sellingPricePref =
+        val sellingPrice =
             findPreference<ListPreference>(getString(R.string.selling_price_higher))
-        sellingPricePref?.entryValues = SellingPriceHigher.getEntries()
-        sellingPricePref?.entries = SellingPriceHigher.getRusNames()
-        if (sellingPricePref?.value == null)
-            sellingPricePref?.setValueIndex(SellingPriceHigher.defaultValue.ordinal)
+        sellingPrice?.entryValues = SellingPriceHigher.getEntries()
+        sellingPrice?.entries = SellingPriceHigher.getRusNames()
+        if (sellingPrice?.value == null)
+            sellingPrice?.setValueIndex(SellingPriceHigher.defaultValue.ordinal)
+
+        // Меню выставления рыночных заявок на покупку
+        val marketOrders =
+            findPreference<ListPreference>(getString(R.string.market_orders))
+        marketOrders?.entryValues = MarketOrders.getEntries()
+        marketOrders?.entries = MarketOrders.getRusNames()
+        if (marketOrders?.value == null)
+            marketOrders?.setValueIndex(MarketOrders.defaultValue.ordinal)
+
+        // Меню ввода коэффициента повышенного спроса
+        val increasedBidRatio =
+            findPreference<EditTextPreference>(getString(R.string.increased_bid_ratio))
+        increasedBidRatio?.setOnBindEditTextListener { editText ->
+            editText.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
 
         // Меню разрешения замены заявок и замены только вверх
         val replaceOrder =

@@ -14,10 +14,12 @@
     <string name="day_auction_time">day_auction_time</string>
     <string name="evening_auction_time">evening_auction_time</string>
     <string name="evening_trades">evening_trades</string>
+    <string name="increased_bid_ratio">increased_bid_ratio</string>
     <string name="load_settings">load_settings</string>
     <string name="logfile_name">logfile.txt</string>
     <string name="main_preferences">main_preferences</string>
     <string name="main_request_delay_min">main_request_delay_min</string>
+    <string name="market_orders">market_orders</string>
     <string name="money_after_spent">money_after_spent</string>
     <string name="other_priority">other_priority</string>
     <string name="other_priority_data">other_priority_data</string>

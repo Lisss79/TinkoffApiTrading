@@ -121,6 +121,12 @@ class RobotReceiver : BroadcastReceiver() {
     // Цена продажи выше цены покупки?
     private var sellingPriceHigher = SellingPriceHigher.defaultValue
 
+    // Покупка по рынку?
+    private var marketOrders = MarketOrders.defaultValue
+
+    // Коэффициент для определения повышенного спроса (во сколько раз спрос выше предложения)
+    private var increasedBidRatio = 2f
+
     // Запрещать ли покупки в выбранные даты
     private var stopPurchase = false
 
@@ -130,6 +136,9 @@ class RobotReceiver : BroadcastReceiver() {
 
     // Запрещены ли покупки сейчас
     private var stopPurchaseNow = false
+
+    // Покупка по рынку сейчас
+    private var marketOrdersNow = false
 
     private var order = PostOrder()                         // заявка для выставления
     private lateinit var dayInfo: TradingDayState           // состояние торгов сейчас
@@ -338,6 +347,18 @@ class RobotReceiver : BroadcastReceiver() {
                 SellingPriceHigher.defaultValue.name
             ) ?: SellingPriceHigher.defaultValue.name
         )
+
+        marketOrders = MarketOrders.valueOf(
+            settingsPrefs.getString(
+                context.getString(R.string.market_orders),
+                MarketOrders.defaultValue.name
+            ) ?: MarketOrders.defaultValue.name
+        )
+
+        increasedBidRatio = settingsPrefs.getString(
+            context.getString(R.string.increased_bid_ratio),
+            increasedBidRatio.toString()
+        )?.toFloat() ?: increasedBidRatio
 
         tradingDayPriority = getPricePriorityFromPrefs(
             settingsPrefs,
@@ -665,7 +686,8 @@ class RobotReceiver : BroadcastReceiver() {
                             val price = Price.parse(bidPrice)
                             val direction = Direction.ORDER_DIRECTION_BUY
                             val accountId = config.accountId
-                            val orderType = OrderType.ORDER_TYPE_LIMIT
+                            val orderType = if (!marketOrdersNow) OrderType.ORDER_TYPE_LIMIT
+                            else OrderType.ORDER_TYPE_MARKET
                             val instrumentId = config.instrumentId
                             val postOrder = PostOrder(
                                 quantity, price, direction,
@@ -955,19 +977,34 @@ class RobotReceiver : BroadcastReceiver() {
         getPricesFromOrderBook()
         config.closePrice = getClosePrice()
 
+        // Определяем, имеется ли сейчас повышенный спрос, раз уж получили стакан
+        config.increasedBid =
+            (orderBook.totalBidQuantity / orderBook.totalAskQuantity) > increasedBidRatio
+
         var result = when (dayInfo) {
             TradingDayState.TRADING_DAY, TradingDayState.TRADING_DAY_ENDING ->
                 getPairPrices(tradingDayPriority)
+
             TradingDayState.TRADING_EVENING ->
                 getPairPrices(tradingEveningPriority)
+
             TradingDayState.OPENING_AUCTION_DAY, TradingDayState.OPENING_AUCTION_EVENING ->
                 getPairPrices(auctionPriority)
+
             TradingDayState.TRADING_DAY_START ->
                 getPairPrices(startDayPriority)
+
             else ->
                 getPairPrices(otherPriority)
         }
         if (result == Pair(0f, 0f)) result = getPairPrices(PricePriorityWithData())
+
+        marketOrdersNow = when {
+            marketOrders == MarketOrders.ALWAYS -> true
+            marketOrders == MarketOrders.INCREASED_BID && config.increasedBid -> true
+            else -> false
+        }
+
         return result
     }
 

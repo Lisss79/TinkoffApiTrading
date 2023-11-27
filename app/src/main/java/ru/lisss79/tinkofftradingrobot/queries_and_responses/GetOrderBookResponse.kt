@@ -10,9 +10,11 @@ class GetOrderBookResponse(val orders: Pair<List<Bid>, List<Ask>>) {
     val bestBidPrice: Float             // Лучшая цена в стакане на покупку
     private val bidMaxQuantity: Int     // Максимальный объем на покупку
     val bidPriceWithMaxQuantity: Float  // Цена в стакане на покупку с максимальным объемом
+    val totalBidQuantity: Int           // Общий объем на покупку
     val bestAskPrice: Float             // Лучшая цена в стакане на продажу
     private val askMaxQuantity: Int     // Максимальный объем на продажу
     val askPriceWithMaxQuantity: Float  // Цена в стакане на продажу с максимальным объемом
+    val totalAskQuantity: Int           // Общий объем на продажу
 
     private val bid: List<Bid> = orders.first
     private val ask: List<Ask> = orders.second
@@ -23,11 +25,13 @@ class GetOrderBookResponse(val orders: Pair<List<Bid>, List<Ask>>) {
             val maxBid = bid.maxByOrNull { it.quantity }
             bidMaxQuantity = maxBid?.quantity ?: 0
             bidPriceWithMaxQuantity = maxBid?.price?.value ?: 0f
+            totalBidQuantity = bid.sumOf { it.quantity }
         }
         else {
             bestBidPrice = 0f
             bidMaxQuantity = 0
             bidPriceWithMaxQuantity = 0f
+            totalBidQuantity = 0
         }
 
         if (ask.isNotEmpty()) {
@@ -35,11 +39,13 @@ class GetOrderBookResponse(val orders: Pair<List<Bid>, List<Ask>>) {
             val maxAsk = ask.maxByOrNull { it.quantity }
             askMaxQuantity = maxAsk?.quantity ?: 0
             askPriceWithMaxQuantity = maxAsk?.price?.value ?: 0f
+            totalAskQuantity = ask.sumOf { it.quantity }
         }
         else {
             bestAskPrice = 0f
             askMaxQuantity = 0
             askPriceWithMaxQuantity = 0f
+            totalAskQuantity = 0
         }
 
     }
