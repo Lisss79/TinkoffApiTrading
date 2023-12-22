@@ -8,12 +8,20 @@ import android.text.TextUtils
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.*
+import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceManager
 import ru.lisss79.tinkofftradingrobot.R
 import ru.lisss79.tinkofftradingrobot.activities.FILE_IDENTIFIER
 import ru.lisss79.tinkofftradingrobot.activities.MIME_ZIP
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys
-import java.io.*
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.nio.charset.Charset
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -183,7 +191,9 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
             if (logsDir != null) File(logsDir, getString(R.string.logfile_name)) else null
         val robotFile =
             if (logsDir != null) File(logsDir, getString(R.string.robotfile_name)) else null
-        val filesList = listOf(prefsSettingsFile, prefsFile, logsFile, robotFile)
+        val moneyFile =
+            if (logsDir != null) File(logsDir, getString(R.string.moneyfile_name)) else null
+        val filesList = listOf(prefsSettingsFile, prefsFile, logsFile, robotFile, moneyFile)
 
         // Создаем архив и добавляем туда файлы из списка
         ZipOutputStream(c.contentResolver.openOutputStream(uri, "wt")).use { zos ->

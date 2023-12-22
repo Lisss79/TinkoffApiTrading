@@ -9,7 +9,7 @@
             android:title="Цена"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
+        <ru.lisss79.tinkofftradingrobot.preferences.PercentPreference
             app:defaultValue="0.0"
             app:key="@string/auction_priority_data"
             app:title="Допуск"
@@ -24,7 +24,7 @@
             android:title="Цена"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
+        <ru.lisss79.tinkofftradingrobot.preferences.PercentPreference
             app:defaultValue="0.0"
             app:key="@string/start_day_priority_data"
             app:title="Допуск"
@@ -39,7 +39,7 @@
             android:title="Цена"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
+        <ru.lisss79.tinkofftradingrobot.preferences.PercentPreference
             app:defaultValue="0.0"
             app:key="@string/trading_day_priority_data"
             app:title="Допуск"
@@ -54,7 +54,7 @@
             android:title="Цена"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
+        <ru.lisss79.tinkofftradingrobot.preferences.PercentPreference
             app:defaultValue="0.0"
             app:key="@string/trading_evening_priority_data"
             app:title="Допуск"
@@ -69,7 +69,7 @@
             android:title="Цена"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.PercentPreference
+        <ru.lisss79.tinkofftradingrobot.preferences.PercentPreference
             app:defaultValue="0.0"
             app:key="@string/other_priority_data"
             app:title="Допуск"

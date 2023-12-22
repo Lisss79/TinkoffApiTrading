@@ -1,4 +1,4 @@
-package ru.lisss79.tinkofftradingrobot
+package ru.lisss79.tinkofftradingrobot.enums
 
 /**
  * Перечисление, определяющее, должна ли быть цена продажи

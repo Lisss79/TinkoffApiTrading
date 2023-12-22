@@ -9,9 +9,13 @@ import android.content.*
 import android.content.Context.MODE_PRIVATE
 import android.os.*
 import androidx.preference.PreferenceManager
-import ru.lisss79.tinkofftradingrobot.PricePriorityWithData.PricePriority
 import ru.lisss79.tinkofftradingrobot.data_classes.InfoForWidget
 import ru.lisss79.tinkofftradingrobot.data_classes.TradingConfig
+import ru.lisss79.tinkofftradingrobot.enums.MarketOrders
+import ru.lisss79.tinkofftradingrobot.enums.PricePriorityWithData
+import ru.lisss79.tinkofftradingrobot.enums.PricePriorityWithData.PricePriority
+import ru.lisss79.tinkofftradingrobot.enums.SellingPriceHigher
+import ru.lisss79.tinkofftradingrobot.enums.TradingDayState
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.*
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
@@ -767,9 +771,9 @@ class RobotReceiver : BroadcastReceiver() {
                     robotTrades.appendText("\n")
                     logFile.appendText("Заявка с id=$lastOrderId была успешно выполнена\n")
 
-                    // Цена последней покупки (0 - если была продажа)
+                    // Средняя цена последней покупки (0 - если была продажа)
                     lastPurchasePrice = if (lastOrder.direction == Direction.ORDER_DIRECTION_BUY)
-                        lastOrder.initialSecurityPrice.value
+                        lastOrder.executedOrderPrice.value / lastOrder.lotsExecuted
                     else 0f
 
                     prefs.edit().apply {
@@ -978,8 +982,11 @@ class RobotReceiver : BroadcastReceiver() {
         config.closePrice = getClosePrice()
 
         // Определяем, имеется ли сейчас повышенный спрос, раз уж получили стакан
-        config.increasedBid =
-            (orderBook.totalBidQuantity / orderBook.totalAskQuantity) > increasedBidRatio
+        config.increasedBid = (orderBook.totalBidQuantity.toFloat() /
+                orderBook.totalAskQuantity.toFloat()) > increasedBidRatio
+
+        config.increasedAsk = (orderBook.totalAskQuantity.toFloat() /
+                orderBook.totalBidQuantity.toFloat()) > increasedBidRatio
 
         var result = when (dayInfo) {
             TradingDayState.TRADING_DAY, TradingDayState.TRADING_DAY_ENDING ->

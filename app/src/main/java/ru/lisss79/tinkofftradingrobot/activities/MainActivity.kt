@@ -33,6 +33,8 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.CONFIG
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.SCHEDULE_NEXT
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.Money
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse.Operation.OperationType
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.PostOrder
 import java.io.File
@@ -333,10 +335,6 @@ class MainActivity : AppCompatActivity() {
                 clearLastPrice()
             }
 
-            R.id.orderError -> {
-                checkForOrderListErrors()
-            }
-
             R.id.robotLogFullUpdate -> {
                 showResult(updateAllOrders())
             }
@@ -446,45 +444,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkForOrderListErrors() {
-        val file = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
-        val tradesLog = RobotTradesLog.fromFile(file)
-        val errors = tradesLog?.checkForCorrectOrdersList()
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Внимание")
-
-        if (errors.isNullOrEmpty()) {
-            dialog.setMessage("Ошибок в списке заявок не найдено")
-                .setPositiveButton("OK", null)
-                .setIcon(R.drawable.ic_info)
-                .show()
-        } else {
-            dialog.setMessage("Найдены ошибок в списке заявок: ${errors.size}шт.  Исправить?")
-                .setNegativeButton("Отмена", null)
-                .setIcon(R.drawable.ic_error)
-                .setPositiveButton("OK") { _, _ ->
-                    val settingsPrefs = PreferenceManager.getDefaultSharedPreferences(this)
-                    val newOrders = tradesLog.correctOrderList(api, settingsPrefs, errors)
-                    val result = RobotTradesLog.toFile(file, newOrders)
-                    showResult(result)
-                }
-                .show()
-        }
-    }
-
     private fun updateAllOrders(): Boolean {
-        val file = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
+        val ordersLog = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
+        val moneyLog = File(getExternalFilesDir(null), getString(R.string.moneyfile_name))
         val accountId = settingsPrefs.getString(getString(R.string.ACCOUNT), "") ?: ""
         val from = Instant.from(ROBOT_START_DATE.atStartOfDay(ZoneId.systemDefault()))
         val to = Instant.now()
         val ordersFromServer = api.getOperations(accountId, from, to).get() ?: return false
-        val operations = ordersFromServer.operations.filter {
+        val orders = ordersFromServer.operations.filter {
             it.operationType == OperationType.OPERATION_TYPE_BUY
                     || it.operationType == OperationType.OPERATION_TYPE_SELL
         }.reversed()
-        val robotTradesLogFromServer = RobotTradesLog.from(operations)
-        return RobotTradesLog.toFile(file, robotTradesLogFromServer.orders)
+        val robotTradesLogFromServer = RobotTradesLog.from(orders)
+
+        val lastMoneyOperation = OperationsResponse.Operation(
+            id = "initial_money",
+            payment = Money.parse(INITIAL_MONEY),
+            state = OperationsResponse.Operation.State.OPERATION_STATE_EXECUTED,
+            operationType = OperationType.OPERATION_TYPE_INPUT,
+            date = from
+        )
+        val moneyOperations = ordersFromServer.operations.filter {
+            it.operationType == OperationType.OPERATION_TYPE_INPUT
+        }.reversed().toMutableList()
+        moneyOperations.add(0, lastMoneyOperation)
+
+        return RobotTradesLog.toFile(ordersLog, robotTradesLogFromServer.orders) &&
+                OperationsResponse.toFile(moneyLog, moneyOperations)
     }
 
     private fun showResult(result: Boolean) {

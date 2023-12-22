@@ -8,6 +8,7 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.FIGI
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INITIAL_ORDER_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INITIAL_SECURITY_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LOADED_FROM_SERVER
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LOTS_EXECUTED
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_DATE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 
@@ -57,6 +58,7 @@ data class OrderStateWithSource(
                     Direction.from(operation.operationType),
                     operation.price,
                     Money.ZERO,
+                    operation.quantity,
                     operation.date
                 ), true
             ) to OrderStateWithSource(
@@ -68,6 +70,7 @@ data class OrderStateWithSource(
                     Direction.from(operation.operationType),
                     operation.price,
                     operation.payment,
+                    operation.quantity,
                     operation.getLastTradesInstant()
                 ), true
             )
@@ -84,6 +87,7 @@ data class OrderStateWithSource(
             put(INITIAL_SECURITY_PRICE, orderState?.initialSecurityPrice?.value)
             put(EXECUTED_ORDER_PRICE, orderState?.executedOrderPrice?.value)
             put(ORDER_DATE, orderState?.orderDate.toString())
+            put(LOTS_EXECUTED, orderState?.lotsExecuted)
             put(LOADED_FROM_SERVER, loadedFromServer)
         }.toString()
     }

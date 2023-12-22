@@ -1,4 +1,4 @@
-package ru.lisss79.tinkofftradingrobot
+package ru.lisss79.tinkofftradingrobot.preferences
 
 import android.app.AlertDialog
 import android.content.Context
@@ -9,6 +9,7 @@ import android.widget.NumberPicker
 import androidx.preference.Preference
 import androidx.preference.Preference.OnPreferenceClickListener
 import androidx.preference.PreferenceManager
+import ru.lisss79.tinkofftradingrobot.R
 
 class PercentPreference(context: Context, attrs: AttributeSet?):
     Preference(context, attrs), OnPreferenceClickListener {

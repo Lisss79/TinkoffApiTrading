@@ -1,4 +1,4 @@
-package ru.lisss79.tinkofftradingrobot
+package ru.lisss79.tinkofftradingrobot.enums
 
 enum class MarketOrders(val rus_name: String) {
 

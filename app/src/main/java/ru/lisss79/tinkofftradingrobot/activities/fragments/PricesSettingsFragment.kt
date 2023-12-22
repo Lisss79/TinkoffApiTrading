@@ -3,10 +3,10 @@ package ru.lisss79.tinkofftradingrobot.activities.fragments
 import android.os.Bundle
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceFragmentCompat
-import ru.lisss79.tinkofftradingrobot.PercentPreference
-import ru.lisss79.tinkofftradingrobot.PricePriorityWithData
-import ru.lisss79.tinkofftradingrobot.PricePriorityWithData.PricePriority
 import ru.lisss79.tinkofftradingrobot.R
+import ru.lisss79.tinkofftradingrobot.enums.PricePriorityWithData
+import ru.lisss79.tinkofftradingrobot.enums.PricePriorityWithData.PricePriority
+import ru.lisss79.tinkofftradingrobot.preferences.PercentPreference
 
 class PriceSettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {

@@ -366,13 +366,13 @@ class StatisticsActivity : AppCompatActivity() {
 
             TextView(this).apply {
                 setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
-                text = if (it.value.direction == Direction.ORDER_DIRECTION_SELL) "Продажа"
-                else "Покупка"
+                text = if (it.value.direction == Direction.ORDER_DIRECTION_SELL) "Sell"
+                else "Buy"
                 tooltipText = "Направление сделки"
                 tableRow.addView(
                     this, TableRow.LayoutParams(
                         0,
-                        TableRow.LayoutParams.WRAP_CONTENT, 2f
+                        TableRow.LayoutParams.WRAP_CONTENT, 1f
                     )
                 )
             }
@@ -386,6 +386,20 @@ class StatisticsActivity : AppCompatActivity() {
                     this, TableRow.LayoutParams(
                         0,
                         TableRow.LayoutParams.WRAP_CONTENT, 2f
+                    )
+                )
+            }
+
+            TextView(this).apply {
+                setTextAppearance(androidx.appcompat.R.style.Base_TextAppearance_AppCompat_Medium)
+                //val executedLotPrice = abs(it.value.result / it.value.quantity)
+                text = String.format("%.2f", it.value.price)
+                tooltipText = "Цена лота"
+                gravity = Gravity.END
+                tableRow.addView(
+                    this, TableRow.LayoutParams(
+                        0,
+                        TableRow.LayoutParams.WRAP_CONTENT, 1f
                     )
                 )
             }

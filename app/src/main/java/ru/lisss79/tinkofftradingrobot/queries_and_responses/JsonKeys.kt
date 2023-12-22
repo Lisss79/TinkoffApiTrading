@@ -40,6 +40,7 @@ object JsonKeys {
     const val LIMIT_ORDER_AVAILABLE_FLAG = "limitOrderAvailableFlag"
     const val LOADED_FROM_SERVER = "loadedFromServer"
     const val LOTS_REQUESTED = "lotsRequested"
+    const val LOTS_EXECUTED = "lotsExecuted"
     const val MIN_PRICE_INCREMENT = "minPriceIncrement"
     const val MONEY = "money"
     const val NAME = "name"

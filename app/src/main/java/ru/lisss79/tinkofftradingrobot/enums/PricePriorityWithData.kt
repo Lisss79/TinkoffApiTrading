@@ -1,4 +1,4 @@
-package ru.lisss79.tinkofftradingrobot
+package ru.lisss79.tinkofftradingrobot.enums
 
 /**
  * Класс для выбора приоритета цены, содержащий тип алгоритма

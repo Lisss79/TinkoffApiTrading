@@ -12,6 +12,8 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.QUANTITY
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.STATE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.TRADES
+import java.io.File
+import java.io.IOException
 import java.time.Instant
 
 class OperationsResponse(val operations: List<Operation>) {
@@ -41,6 +43,42 @@ class OperationsResponse(val operations: List<Operation>) {
             }
             return OperationsResponse(list)
         }
+
+        // Получение данных из файла
+        fun fromFile(file: File) =
+            try {
+                val moneyLines = file.readLines()
+                val moneyOperations = moneyLines.map { Operation.parse(it) }
+                OperationsResponse(moneyOperations)
+            } catch (e: IOException) {
+                e.printStackTrace()
+                null
+            }
+
+        // Записать в файл данные об операциях
+        fun toFile(file: File, operations: List<Operation>) =
+            try {
+                if (operations.isEmpty()) throw Exception("No data to write to file")
+                file.writeText("")
+                operations.forEach { operation ->
+                    operation.apply {
+                        file.appendText(toJsonLog())
+                        file.appendText("\n")
+                    }
+                }
+                true
+            } catch (e: IOException) {
+                e.printStackTrace()
+                false
+            }
+    }
+
+    /**
+     * Объявляем оператор "плюс"
+     */
+    operator fun plus(other: OperationsResponse): OperationsResponse {
+        val newOperations = operations + other.operations
+        return OperationsResponse(newOperations)
     }
 
     class Operation(
@@ -48,6 +86,7 @@ class OperationsResponse(val operations: List<Operation>) {
         val figi: String = "",
         val price: Money = Money.ZERO,
         val payment: Money = Money.ZERO,
+        val quantity: Int = 0,
         val state: State = State.OPERATION_STATE_UNSPECIFIED,
         val operationType: OperationType = OperationType.OPERATION_TYPE_UNSPECIFIED,
         val date: Instant = Instant.now(),
@@ -62,13 +101,14 @@ class OperationsResponse(val operations: List<Operation>) {
 
             fun parse(responseJson: JSONObject): Operation {
                 return try {
-                    val id = responseJson.getString(ID)
-                    val figi = responseJson.getString(FIGI)
-                    val price = Money.parse(responseJson.getString(PRICE))
-                    val payment = Money.parse(responseJson.getString(PAYMENT))
-                    val state = State.parse(responseJson.getString(STATE))
-                    val operationType = OperationType.parse(responseJson.getString(OPERATION_TYPE))
-                    val instant = Instant.parse(responseJson.getString(DATE))
+                    val id = responseJson.optString(ID)
+                    val figi = responseJson.optString(FIGI)
+                    val price = Money.parse(responseJson.optString(PRICE))
+                    val payment = Money.parse(responseJson.optString(PAYMENT))
+                    val quantity = responseJson.optString(QUANTITY, "0").toInt()
+                    val state = State.parse(responseJson.optString(STATE))
+                    val operationType = OperationType.parse(responseJson.optString(OPERATION_TYPE))
+                    val instant = Instant.parse(responseJson.optString(DATE))
 
                     val trades = mutableListOf<Trade>()
                     try {
@@ -81,13 +121,28 @@ class OperationsResponse(val operations: List<Operation>) {
                         e.printStackTrace()
                     }
 
-                    Operation(id, figi, price, payment, state, operationType, instant, trades)
+                    Operation(
+                        id, figi, price, payment, quantity,
+                        state, operationType, instant, trades
+                    )
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Operation()
                 }
 
             }
+        }
+
+        fun toJsonLog(): String {
+            return JSONObject().apply {
+                put(ID, id)
+                put(OPERATION_TYPE, operationType.name)
+                put(STATE, state.name)
+                put(PRICE, price.value)
+                put(QUANTITY, quantity)
+                put(PAYMENT, payment.value)
+                put(DATE, date)
+            }.toString()
         }
 
         fun getLastTradesInstant() =

@@ -8,10 +8,10 @@ import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
-import ru.lisss79.tinkofftradingrobot.MarketOrders
 import ru.lisss79.tinkofftradingrobot.R
-import ru.lisss79.tinkofftradingrobot.SellingPriceHigher
 import ru.lisss79.tinkofftradingrobot.TRADING_CURRENCY
+import ru.lisss79.tinkofftradingrobot.enums.MarketOrders
+import ru.lisss79.tinkofftradingrobot.enums.SellingPriceHigher
 
 class AlgorithmSettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {

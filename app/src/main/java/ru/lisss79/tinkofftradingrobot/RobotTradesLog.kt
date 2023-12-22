@@ -6,11 +6,13 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.Direction
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LAST_PURCHASE_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse.Operation.OperationType
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OrderState
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.OrderStateWithSource
 import java.io.File
 import java.io.IOException
 import kotlin.math.abs
+import kotlin.math.round
 import kotlin.math.roundToInt
 
 /**
@@ -35,8 +37,12 @@ class RobotTradesLog(val orders: List<OrderStateWithSource?>) {
             val newOrders = mutableListOf<OrderStateWithSource?>()
             if (operations == null) return RobotTradesLog(listOf())
             operations.forEach {
-                newOrders.add(OrderStateWithSource.from(it).first)
-                newOrders.add(OrderStateWithSource.from(it).second)
+                if (it.operationType == OperationType.OPERATION_TYPE_BUY ||
+                    it.operationType == OperationType.OPERATION_TYPE_SELL
+                ) {
+                    newOrders.add(OrderStateWithSource.from(it).first)
+                    newOrders.add(OrderStateWithSource.from(it).second)
+                }
             }
             return RobotTradesLog(newOrders)
         }
@@ -66,25 +72,6 @@ class RobotTradesLog(val orders: List<OrderStateWithSource?>) {
     operator fun plus(other: RobotTradesLog): RobotTradesLog {
         val newOrders = orders + other.orders
         return RobotTradesLog(newOrders)
-    }
-
-    /**
-     * Проверяет список заявок в файле на предмет пропусков состояний
-     */
-    fun checkForCorrectOrdersList(): List<Pair<Int, String>> {
-        val errors = mutableListOf<Pair<Int, String>>()
-        var index = 0
-        while (index < orders.size - 1) {
-            if ((orders[index]?.orderState?.executionReportStatus
-                        == ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW)
-                && (orders[index + 1]?.orderState?.executionReportStatus
-                        == ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW)
-            ) {
-                errors.add(index to (orders[index]?.orderState?.orderId ?: ""))
-            }
-            index++
-        }
-        return errors
     }
 
     /**
@@ -123,11 +110,14 @@ class RobotTradesLog(val orders: List<OrderStateWithSource?>) {
                     val quantity = if (initialSecurityPrice.value != 0f)
                         (initialOrderPrice.value / initialSecurityPrice.value).roundToInt()
                     else 0
+                    val financialResult = getFinancialResult(it.orderState)
+                    val executedLotPrice =
+                        round((executedOrderPrice.value / quantity) * 100) / 100
                     Deal(
                         figi,
                         orderDate,
-                        getFinancialResult(it.orderState),
-                        initialSecurityPrice.value,
+                        financialResult,
+                        executedLotPrice,
                         quantity,
                         direction
                     )
@@ -180,63 +170,6 @@ class RobotTradesLog(val orders: List<OrderStateWithSource?>) {
                 apply()
             }
         }
-    }
-
-    /**
-     * Исправляет список заявок
-     * @param errors результат checkForCorrectOrdersList
-     */
-    fun correctOrderList(
-        api: TinkoffOpenApi,
-        settingsPrefs: SharedPreferences,
-        errors: List<Pair<Int, String>>
-    ): List<OrderStateWithSource?> {
-        val newOrders = orders.toMutableList()
-        try {
-            val accountId = settingsPrefs.getString("account", "") ?: ""
-            errors.forEach { entry ->
-                val state = api.getOrderState(accountId, entry.second).get()
-                val currIndex =
-                    newOrders.withIndex().first {
-                        it.value?.orderState?.orderId == entry.second
-                    }.index
-                newOrders.add(currIndex + 1, OrderStateWithSource(state))
-                Thread.sleep(700)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            newOrders.clear()
-        }
-        return newOrders
-    }
-
-    /**
-     * Возвращает обновленный список сделок
-     */
-    fun updateOrderList(
-        api: TinkoffOpenApi,
-        settingsPrefs: SharedPreferences,
-        updatedOrders: List<OrderStateWithSource?>
-    ): List<OrderStateWithSource?> {
-        val newOrders = orders.toMutableList()
-        val updatedOrderWithIndex = updatedOrders.map { orders.indexOf(it) to it }
-
-        try {
-            val accountId = settingsPrefs.getString("account", "") ?: ""
-            updatedOrderWithIndex.forEach { entry ->
-                val state = api.getOrderState(
-                    accountId, entry.second?.orderState?.orderId ?: ""
-                ).get()
-                newOrders[entry.first] = OrderStateWithSource(state)
-                Thread.sleep(700)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            newOrders.clear()
-        }
-
-        return newOrders
-
     }
 
 }

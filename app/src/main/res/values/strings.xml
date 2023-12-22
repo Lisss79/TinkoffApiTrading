@@ -16,7 +16,6 @@
     <string name="evening_trades">evening_trades</string>
     <string name="increased_bid_ratio">increased_bid_ratio</string>
     <string name="load_settings">load_settings</string>
-    <string name="logfile_name">logfile.txt</string>
     <string name="main_preferences">main_preferences</string>
     <string name="main_request_delay_min">main_request_delay_min</string>
     <string name="market_orders">market_orders</string>
@@ -27,7 +26,6 @@
     <string name="recent_interval_min">recent_interval_min</string>
     <string name="replace_order_enabled">replace_order_enabled</string>
     <string name="replace_order_up">replace_order_up</string>
-    <string name="robotfile_name">robot.txt</string>
     <string name="save_settings">save_settings</string>
     <string name="selling_price_higher">selling_price_higher</string>
     <string name="shared_prefs_dir">shared_prefs</string>
@@ -40,6 +38,11 @@
     <string name="trading_day_priority_data">trading_day_priority_data</string>
     <string name="trading_evening_priority">trading_evening_priority</string>
     <string name="trading_evening_priority_data">trading_evening_priority_data</string>
+
+    <!-- Имена файлов с логами -->
+    <string name="logfile_name">logfile.txt</string>
+    <string name="robotfile_name">robot.txt</string>
+    <string name="moneyfile_name">money.txt</string>
 
     <!-- Массивы с инструментами для работы -->
     <array name="instruments_names">

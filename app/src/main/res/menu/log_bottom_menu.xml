@@ -11,4 +11,9 @@
         android:icon="@drawable/ic_robot"
         android:title="Лог робота" />
 
+    <item
+        android:id="@+id/moneyLog"
+        android:icon="@drawable/ic_currency_change"
+        android:title="Лог денег" />
+
 </menu>

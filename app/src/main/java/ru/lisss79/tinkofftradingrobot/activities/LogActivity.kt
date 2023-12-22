@@ -2,6 +2,8 @@ package ru.lisss79.tinkofftradingrobot.activities
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.text.Html
+import android.text.Html.FROM_HTML_MODE_COMPACT
 import android.view.*
 import android.widget.ScrollView
 import android.widget.TextView
@@ -13,6 +15,9 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import ru.lisss79.tinkofftradingrobot.DatePickerWithNeutralButton
 import ru.lisss79.tinkofftradingrobot.R
 import ru.lisss79.tinkofftradingrobot.RobotTradesLog
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.ExecutionReportStatus.EXECUTION_REPORT_STATUS_NEW
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.OperationsResponse
 import java.io.File
 import java.io.IOException
 import java.time.Instant
@@ -23,14 +28,17 @@ import java.util.*
 class LogActivity : AppCompatActivity() {
     private val LOG_FILE = 1
     private val LOG_ROBOT = 2
+    private val LOG_MONEY = 3
     private val SCROLL_DELAY_MS = 50L
     private var scrollPositionLog = -1
     private var scrollPositionRobot = -1
+    private var scrollPositionMoney = -1
     private var selectedLog = LOG_FILE
     private var endDate = LocalDate.now()
     private var startDate = LocalDate.of(1970, 1, 1)
     private lateinit var logFile: File
     private lateinit var robotTrades: File
+    private lateinit var moneyLog: File
     private lateinit var scrollViewLog: ScrollView
     private lateinit var textViewLog: TextView
 
@@ -40,10 +48,10 @@ class LogActivity : AppCompatActivity() {
 
         logFile = File(getExternalFilesDir(null), getString(R.string.logfile_name))
         robotTrades = File(getExternalFilesDir(null), getString(R.string.robotfile_name))
+        moneyLog = File(getExternalFilesDir(null), getString(R.string.moneyfile_name))
         scrollViewLog = findViewById(R.id.scrollViewLog)
         textViewLog = findViewById(R.id.textViewLog)
         registerForContextMenu(textViewLog)
-
         readAndShowLog()
 
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationViewLog)
@@ -54,10 +62,17 @@ class LogActivity : AppCompatActivity() {
                     selectedLog = LOG_FILE
                     readAndShowLog()
                 }
+
                 R.id.robotLog -> {
                     selectedLog = LOG_ROBOT
                     println("scrollPosition: $scrollPositionLog")
                     readAndShowRobot()
+                }
+
+                R.id.moneyLog -> {
+                    selectedLog = LOG_MONEY
+                    println("scrollPosition: $scrollPositionLog")
+                    readAndShowMoney()
                 }
             }
             true
@@ -66,8 +81,11 @@ class LogActivity : AppCompatActivity() {
         scrollViewLog.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             // Отслеживаем изменение позиции скроллинга только если есть текст
             if (textViewLog.text.isNotEmpty()) {
-                if (selectedLog == LOG_FILE) scrollPositionLog = scrollY
-                else scrollPositionRobot = scrollY
+                when (selectedLog) {
+                    LOG_FILE -> scrollPositionLog = scrollY
+                    LOG_ROBOT -> scrollPositionRobot = scrollY
+                    LOG_MONEY -> scrollPositionMoney = scrollY
+                }
             }
         }
 
@@ -84,6 +102,7 @@ class LogActivity : AppCompatActivity() {
             R.id.range -> {
                 selectRange()
             }
+
             android.R.id.home -> onBackPressed()
         }
         return true
@@ -119,24 +138,42 @@ class LogActivity : AppCompatActivity() {
                 Instant
                     .ofEpochMilli(it.second).atZone(ZoneId.systemDefault())
             )
-            if (selectedLog == LOG_FILE) {
-                scrollPositionLog = -1
-                readAndShowLog()
-            } else {
-                scrollPositionRobot = -1
-                readAndShowRobot()
+            when (selectedLog) {
+                LOG_FILE -> {
+                    scrollPositionLog = -1
+                    readAndShowLog()
+                }
+
+                LOG_ROBOT -> {
+                    scrollPositionRobot = -1
+                    readAndShowRobot()
+                }
+
+                LOG_MONEY -> {
+                    scrollPositionMoney = -1
+                    readAndShowMoney()
+                }
             }
         }
 
         val picker = DatePickerWithNeutralButton(dateRangePicker) {
             startDate = LocalDate.of(1970, 1, 1)
             endDate = LocalDate.now()
-            if (selectedLog == LOG_FILE) {
-                scrollPositionLog = -1
-                readAndShowLog()
-            } else {
-                scrollPositionRobot = -1
-                readAndShowRobot()
+            when (selectedLog) {
+                LOG_FILE -> {
+                    scrollPositionLog = -1
+                    readAndShowLog()
+                }
+
+                LOG_ROBOT -> {
+                    scrollPositionRobot = -1
+                    readAndShowRobot()
+                }
+
+                LOG_MONEY -> {
+                    scrollPositionMoney = -1
+                    readAndShowMoney()
+                }
             }
         }
         picker.show(supportFragmentManager, "range")
@@ -155,26 +192,66 @@ class LogActivity : AppCompatActivity() {
     override fun onContextItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.delete_log -> {
-                if (selectedLog == LOG_FILE) {
-                    try {
-                        logFile.delete()
-                        recreate()
-                    } catch (e: IOException) {
-                        e.printStackTrace()
+                when (selectedLog) {
+                    LOG_FILE -> {
+                        try {
+                            logFile.delete()
+                            recreate()
+                        } catch (e: IOException) {
+                            e.printStackTrace()
+                        }
                     }
 
-                } else if (selectedLog == LOG_ROBOT) {
-                    try {
-                        robotTrades.delete()
-                        recreate()
-                    } catch (e: IOException) {
-                        e.printStackTrace()
+                    LOG_ROBOT -> {
+                        try {
+                            robotTrades.delete()
+                            recreate()
+                        } catch (e: IOException) {
+                            e.printStackTrace()
+                        }
+                    }
+
+                    else -> {
+                        try {
+                            moneyLog.delete()
+                            recreate()
+                        } catch (e: IOException) {
+                            e.printStackTrace()
+                        }
                     }
                 }
                 true
             }
+
             else -> super.onContextItemSelected(item)
         }
+    }
+
+    private fun readAndShowMoney() {
+        val dialog = createWaitingDialog()
+        dialog.show()
+        scrollViewLog.postDelayed({
+            val log = OperationsResponse.fromFile(moneyLog)
+            val entries = log?.operations ?: listOf()
+
+            val text = entries.filter {
+                val currDate = LocalDate
+                    .from(it.date.atZone(ZoneId.systemDefault()))
+                (currDate.isAfter(startDate) || currDate.isEqual(startDate))
+                        && (currDate.isBefore(endDate) || currDate.isEqual(endDate))
+            }.joinToString(separator = "\n\n") { it.toJsonLog() }
+            textViewLog.text = text
+
+            if (scrollPositionMoney == -1) {
+                scrollViewLog
+                    .postDelayed({ scrollViewLog.fullScroll(View.FOCUS_DOWN) }, SCROLL_DELAY_MS)
+            } else {
+                val k = scrollPositionMoney
+                scrollViewLog
+                    .postDelayed({ scrollViewLog.scrollTo(0, k) }, SCROLL_DELAY_MS)
+            }
+            dialog.dismiss()
+        }, SCROLL_DELAY_MS)
     }
 
     private fun readAndShowLog() {
@@ -240,8 +317,17 @@ class LogActivity : AppCompatActivity() {
                     (currDate.isAfter(startDate) || currDate.isEqual(startDate))
                             && (currDate.isBefore(endDate) || currDate.isEqual(endDate))
                 } else false
-            }.joinToString(separator = "\n\n") { it?.toJsonLog() ?: "" }
-            textViewLog.text = text
+            }.joinToString(separator = "<br><br>") {
+                if (it != null) {
+                    val color = when (it.orderState?.executionReportStatus) {
+                        EXECUTION_REPORT_STATUS_FILL -> "GREEN"
+                        EXECUTION_REPORT_STATUS_NEW -> "YELLOW"
+                        else -> "RED"
+                    }
+                    "<font COLOR='$color'>${it.toJsonLog()}</font>"
+                } else ""
+            }
+            textViewLog.text = Html.fromHtml(text, FROM_HTML_MODE_COMPACT)
 
             if (scrollPositionRobot == -1) {
                 scrollViewLog

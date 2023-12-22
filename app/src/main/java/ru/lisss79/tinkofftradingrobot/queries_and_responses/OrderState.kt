@@ -7,6 +7,7 @@ import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.EXECUTION_R
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.FIGI
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INITIAL_ORDER_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INITIAL_SECURITY_PRICE
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.LOTS_EXECUTED
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_DATE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.ORDER_ID
 import java.time.Instant
@@ -21,8 +22,9 @@ class OrderState(
     val direction: Direction = Direction.ORDER_DIRECTION_UNSPECIFIED,
     // Цена заявки одного лота
     val initialSecurityPrice: Money = Money.ZERO,
-    // Цена выполненной части заявки
+    // Цена и количество выполненной части заявки
     val executedOrderPrice: Money = Money.ZERO,
+    val lotsExecuted: Int = 0,
     var orderDate: Instant = Instant.now(),
 ) {
 
@@ -49,13 +51,14 @@ class OrderState(
                 val direction = Direction.parse(responseJson.getString(DIRECTION))
                 val initialSecurityPrice =
                     Money.parse(responseJson.getString(INITIAL_SECURITY_PRICE))
-                val executedOrderPrice = if (responseJson.has(EXECUTED_ORDER_PRICE))
-                    Money.parse(responseJson.getString(EXECUTED_ORDER_PRICE)) else Money.ZERO
+                val executedOrderPrice =
+                    Money.parse(responseJson.optString(EXECUTED_ORDER_PRICE, ""))
+                val lotsExecuted = responseJson.optString(LOTS_EXECUTED, "0").toInt()
                 val orderDate =
                     Instant.parse(responseJson.getString(ORDER_DATE))
                 OrderState(
-                    orderId, figi, executionReportStatus, initialOrderPrice,
-                    direction, initialSecurityPrice, executedOrderPrice, orderDate
+                    orderId, figi, executionReportStatus, initialOrderPrice, direction,
+                    initialSecurityPrice, executedOrderPrice, lotsExecuted, orderDate
                 )
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -73,6 +76,7 @@ class OrderState(
         jsonString.put(INITIAL_ORDER_PRICE, initialOrderPrice.value)
         jsonString.put(INITIAL_SECURITY_PRICE, initialSecurityPrice.value)
         jsonString.put(EXECUTED_ORDER_PRICE, executedOrderPrice.value)
+        jsonString.put(LOTS_EXECUTED, lotsExecuted)
         jsonString.put(ORDER_DATE, orderDate.toString())
         return jsonString.toString()
     }

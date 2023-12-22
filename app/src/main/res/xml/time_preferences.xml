@@ -28,7 +28,7 @@
             app:title="Прекращение покупок"
             app:useSimpleSummaryProvider="true" />
 
-        <ru.lisss79.tinkofftradingrobot.DatePickerPreference
+        <ru.lisss79.tinkofftradingrobot.preferences.DatePickerPreference
             android:defaultValue=""
             app:key="@string/stop_purchase_dates"
             app:title="Интервал"

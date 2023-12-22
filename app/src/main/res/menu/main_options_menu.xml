@@ -13,7 +13,7 @@
         android:icon="@drawable/ic_settings"
         android:title="Настройки"
         app:showAsAction="always" />
-    <item android:title="Проверка ошибок">
+    <item android:title="Сервисные операции">
         <menu>
             <item
                 android:id="@+id/lastPriceError"
@@ -21,9 +21,6 @@
             <item
                 android:id="@+id/lastPriceClear"
                 android:title="Удаление последней цены" />
-            <item
-                android:id="@+id/orderError"
-                android:title="Ошибки учета заявок" />
             <item
                 android:id="@+id/isRunningError"
                 android:title="Ошибки состояния запуска" />
