@@ -1069,15 +1069,16 @@ class RobotReceiver : BroadcastReceiver() {
             return nowUtc.timeInMillis + mainDelayRequestsMin * 60000L
         }
 
-        return if (stopPurchaseNow) tomorrowHourBeforeTrades() to false
-        else when (day) {
+        return when (day) {
             TradingDayState.MORNING_BEFORE_TRADES -> tomorrowHourBeforeTrades() to false
             TradingDayState.ONE_HOUR_BEFORE_TRADES -> {
                 val newCalendar = startTimeAuctionDay.clone() as Calendar
                 newCalendar.timeInMillis to true
             }
+
             TradingDayState.TRADING_DAY,
             TradingDayState.TRADING_DAY_START -> nextTime() to false
+
             TradingDayState.TRADING_DAY_ENDING,
             TradingDayState.PAUSE_BETWEEN_DAY_AND_EVENING -> {
                 if (eveningTrades) {
