@@ -4,6 +4,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.CancelOrderResponse
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.EtfResponse
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.FindInstrumentsResponse
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.GetAccountsResponse
@@ -291,6 +292,34 @@ class TinkoffOpenApi(val token: String) {
                         )
                     }
                     orderResponse = PostOrderResponse.parse(response.body?.string())
+                }
+            } catch (e: IOException) {
+                println("$e")
+            }
+            return@supplyAsync orderResponse
+        }
+        return future
+    }
+
+    fun cancelOrder(accountId: String, orderId: String): CompletableFuture<CancelOrderResponse?> {
+
+        val future: CompletableFuture<CancelOrderResponse?> = CompletableFuture.supplyAsync {
+            var orderResponse: CancelOrderResponse? = null
+            val client = OkHttpClient()
+
+            val url = API_URL + "tinkoff.public.invest.api.contract.v1.OrdersService/CancelOrder"
+            val mapRequest = mapOf(ACCOUNT_ID to accountId, ORDER_ID to orderId)
+            val request = getRequestWithAuth(url, createBody(mapRequest))
+
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException(
+                            "Запрос к серверу не был успешен (метод cancelOrder):" +
+                                    " ${response.code} ${response.body?.string()}"
+                        )
+                    }
+                    orderResponse = CancelOrderResponse.parse(response.body?.string())
                 }
             } catch (e: IOException) {
                 println("$e")

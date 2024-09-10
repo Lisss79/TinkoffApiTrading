@@ -2,6 +2,7 @@ package ru.lisss79.tinkofftradingrobot.queries_and_responses
 
 import org.json.JSONObject
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.DIRECTION
+import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.EXECUTED_ORDER_PRICE
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.EXECUTION_REPORT_STATUS
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.FIGI
 import ru.lisss79.tinkofftradingrobot.queries_and_responses.JsonKeys.INITIAL_ORDER_PRICE
@@ -42,8 +43,9 @@ class PostOrderResponse(
                 val direction = Direction.parse(responseJson.getString(DIRECTION))
                 val initialSecurityPrice =
                     Money.parse(responseJson.getString(INITIAL_SECURITY_PRICE))
-                val executedOrderPrice =
+                val executedOrderPrice = if (responseJson.has(EXECUTED_ORDER_PRICE))
                     Money.parse(responseJson.getString(JsonKeys.EXECUTED_ORDER_PRICE))
+                else Money.ZERO
                 PostOrderResponse(
                     orderId, figi, executionReportStatus, initialOrderPrice,
                     direction, initialSecurityPrice, executedOrderPrice

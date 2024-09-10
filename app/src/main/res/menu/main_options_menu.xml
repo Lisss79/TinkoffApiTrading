@@ -3,16 +3,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/statistics"
-        android:title="Статистика" />
-    <item
-        android:id="@+id/log"
-        android:title="Просмотр лога" />
+        android:id="@+id/info"
+        android:icon="@drawable/ic_info_menu"
+        android:title="Информация"
+        app:showAsAction="always" />
     <item
         android:id="@+id/settings"
         android:icon="@drawable/ic_settings"
         android:title="Настройки"
         app:showAsAction="always" />
+    <item
+        android:id="@+id/statistics"
+        android:title="Статистика" />
+    <item
+        android:id="@+id/log"
+        android:title="Просмотр лога" />
     <item android:title="Сервисные операции">
         <menu>
             <item
@@ -29,6 +34,9 @@
                 android:title="Обновить лог всех заявок" />
         </menu>
     </item>
+    <item
+        android:id="@+id/cancel_order"
+        android:title="Отмена заявки" />
     <item
         android:id="@+id/about"
         android:title="О программе" />

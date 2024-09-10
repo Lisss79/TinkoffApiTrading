@@ -139,7 +139,6 @@ class MainActivity : AppCompatActivity() {
         tvError = findViewById(R.id.text_view_error)
         val buttonConnect = findViewById<Button>(R.id.button_connect)
         val buttonStop = findViewById<Button>(R.id.button_stop)
-        val buttonInfo = findViewById<Button>(R.id.button_info)
         intentRobot = Intent(this, RobotReceiver::class.java)
         intentRobot.putExtra(RECEIVER, receiver)
         checkForAlarmPlanning()
@@ -148,11 +147,6 @@ class MainActivity : AppCompatActivity() {
         buttonConnect.setOnClickListener {
             checkNightlyWorker(true)
             sendBroadcastToRobot(true)
-        }
-
-        // Обработка нажатия кнопки Info
-        buttonInfo.setOnClickListener {
-            sendBroadcastToRobot(false)
         }
 
         // Обработка нажатия кнопки Stop
@@ -300,6 +294,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
+            R.id.info -> {
+                sendBroadcastToRobot(false)
+            }
+
             R.id.settings -> {
                 startActivity(intentSettings)
             }
@@ -318,7 +316,7 @@ class MainActivity : AppCompatActivity() {
 
             R.id.about -> {
                 val text = "Торговый робот Абрам ${BuildConfig.VERSION_NAME}\n" +
-                        "Build ${BuildConfig.VERSION_CODE}\n(c)2023 Lisss79 Studio"
+                        "Build ${BuildConfig.VERSION_CODE}\n(c)2024 Lisss79 Studio"
                 val about = AlertDialog.Builder(this)
                     .setTitle("О программе")
                     .setMessage(text)
@@ -342,6 +340,11 @@ class MainActivity : AppCompatActivity() {
             R.id.isRunningError -> {
                 checkForIsRunningErrors()
             }
+
+            R.id.cancel_order -> {
+                cancelOrder()
+            }
+
         }
         return super.onOptionsItemSelected(item)
     }
@@ -356,6 +359,31 @@ class MainActivity : AppCompatActivity() {
             .setView(groupView)
             .setCancelable(false)
             .create()
+    }
+
+    private fun cancelOrder() {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Внимание")
+        dialog.setMessage("Вы уверены?")
+            .setPositiveButton("OK") { _, _ ->
+                val accountId = settingsPrefs.getString(getString(R.string.ACCOUNT), "") ?: ""
+                val logFile = File(getExternalFilesDir(null), getString(R.string.logfile_name))
+                val orders = api.getOrders(accountId).get()
+                if (orders != null) {
+                    val resultsList = orders.orders.map { order ->
+                        val result = api.cancelOrder(accountId, order.orderId).get()
+                        if (result != null)
+                            logFile.appendText("Заявка ${order.orderId} отменена вручную в ${result.time} \n")
+                        result
+                    }
+                    val success = resultsList.filter { it == null }.count() <= 0
+                    showResult(success)
+                }
+                else showResult(false)
+            }
+            .setNegativeButton("Отмена", null)
+            .setIcon(R.drawable.ic_info)
+            .show()
     }
 
     private fun clearLastPrice() {
